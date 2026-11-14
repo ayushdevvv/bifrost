@@ -9,7 +9,10 @@ import {
 } from 'lucide-react'
 import Arena3D from './components/Arena3D.jsx'
 
-const API = import.meta.env.VITE_API_BASE_URL || '/api'
+const API = (import.meta.env.VITE_API_BASE_URL || '/api').replace(/\/$/, '')
+const API_URL = new URL(API, window.location.origin)
+const WS_PROTOCOL = API_URL.protocol === 'https:' ? 'wss:' : 'ws:'
+const WS_BASE = `${WS_PROTOCOL}//${API_URL.host}`
 const navGroups = [
   { label: 'Workspace', items: [
     ['overview', 'Overview', LayoutDashboard], ['benchmark', 'Benchmark Lab', FlaskConical],
@@ -474,8 +477,7 @@ function App() {
     loadExperiment()
     timer = window.setInterval(loadExperiment, 1800)
     try {
-      const protocol = location.protocol === 'https:' ? 'wss:' : 'ws:'
-      socket = new WebSocket(`${protocol}//${location.host}/ws/${activeExperimentId}`)
+      socket = new WebSocket(`${WS_BASE}/ws/${activeExperimentId}`)
       socket.onmessage = (event) => {
         const item = JSON.parse(event.data)
         setArenaEvents((old) => [...old, item].slice(-300))

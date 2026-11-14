@@ -43,6 +43,8 @@ RIFT_PROXY_TOKEN = os.getenv("RIFT_PROXY_TOKEN", "")
 UPSTREAM_OPENAI_BASE_URL = os.getenv("UPSTREAM_OPENAI_BASE_URL", "https://api.openai.com/v1")
 UPSTREAM_OPENAI_API_KEY = os.getenv("UPSTREAM_OPENAI_API_KEY", "")
 RIFT_PROVIDER_FAULT_PROXY_ENABLED = os.getenv("RIFT_PROVIDER_FAULT_PROXY_ENABLED", "false").lower() == "true"
+SERVE_FRONTEND = os.getenv("SERVE_FRONTEND", "true").strip().lower() in {"1", "true", "yes"}
+CORS_ORIGINS = [origin.strip() for origin in os.getenv("CORS_ORIGINS", "*").split(",") if origin.strip()] or ["*"]
 
 TASKS: list[dict[str, Any]] = [
     {
@@ -852,7 +854,7 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(title="RIFT Arena API", version="0.3.0", docs_url="/api/docs", redoc_url="/api/redoc", lifespan=lifespan)
-app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_credentials=False, allow_methods=["*"], allow_headers=["*"])
+app.add_middleware(CORSMiddleware, allow_origins=CORS_ORIGINS, allow_credentials=False, allow_methods=["*"], allow_headers=["*"])
 
 
 @app.get("/api/health")
@@ -1409,16 +1411,22 @@ async def provider_fault_proxy(payload: dict[str, Any], authorization: str | Non
         return JSONResponse(status_code=upstream.status_code, content={"error": {"message": upstream.text[:500]}})
 
 
-# Public integration guides and feature art are served before the catch-all frontend mount.
-DOCS = ROOT / "docs"
-if DOCS.exists():
-    app.mount("/guides", StaticFiles(directory=DOCS), name="guides")
-ASSETS = FRONTEND / "assets"
-if not ASSETS.exists():
-    ASSETS = ROOT / "frontend" / "public" / "assets"
-if ASSETS.exists():
-    app.mount("/assets", StaticFiles(directory=ASSETS), name="assets")
+# Static files are optional. On Render, the React app is deployed as a separate
+# Static Site and this process serves only the API + WebSocket endpoints.
+if SERVE_FRONTEND:
+    DOCS = ROOT / "docs"
+    if DOCS.exists():
+        app.mount("/guides", StaticFiles(directory=DOCS), name="guides")
+    ASSETS = FRONTEND / "assets"
+    if not ASSETS.exists():
+        ASSETS = ROOT / "frontend" / "public" / "assets"
+    if ASSETS.exists():
+        app.mount("/assets", StaticFiles(directory=ASSETS), name="assets")
 
-# Static frontend is mounted last so API, WebSocket, guides and art routes take precedence.
-if FRONTEND.exists():
-    app.mount("/", StaticFiles(directory=FRONTEND, html=True), name="frontend")
+    # Static frontend is mounted last so API and WebSocket routes take precedence.
+    if FRONTEND.exists():
+        app.mount("/", StaticFiles(directory=FRONTEND, html=True), name="frontend")
+else:
+    @app.get("/")
+    def api_root():
+        return {"service": "RIFT Arena API", "health": "/api/health", "docs": "/api/docs"}

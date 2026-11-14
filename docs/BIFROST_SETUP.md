@@ -21,7 +21,7 @@ RIFT includes an optional OpenAI-compatible upstream fault proxy at:
 
 Configure a Bifrost custom OpenAI-compatible provider with:
 
-- Base URL: `http://host.docker.internal:8000/fault-proxy/v1` when Bifrost runs in Docker on the same host, or `http://127.0.0.1:8000/fault-proxy/v1` when it can reach the host loopback.
+- Base URL: `https://YOUR-RIFT-BACKEND.onrender.com/fault-proxy/v1` when Bifrost can reach the public RIFT backend.
 - Authorization: `Bearer <RIFT_PROXY_TOKEN>`.
 - Upstream target: set `UPSTREAM_OPENAI_BASE_URL` and `UPSTREAM_OPENAI_API_KEY` in RIFT's `.env`.
 
