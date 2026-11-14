@@ -34,7 +34,7 @@ FRONTEND = ROOT / "frontend" / "dist"
 if not FRONTEND.exists():
     FRONTEND = ROOT / "frontend"
 
-BIFROST_BASE_URL = os.getenv("BIFROST_BASE_URL", "").rstrip("/")
+BIFROST_BASE_URL = os.getenv("BIFROST_BASE_URL", "https://bifrost-deploy.onrender.com/v1").rstrip("/")
 BIFROST_API_KEY = os.getenv("BIFROST_API_KEY", "")
 BIFROST_MODEL = os.getenv("BIFROST_MODEL", "general")
 TAVILY_API_KEY = os.getenv("TAVILY_API_KEY", "")
@@ -869,7 +869,6 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(title="RIFT Arena API", version="0.3.0", docs_url="/api/docs", redoc_url="/api/redoc", lifespan=lifespan)
-app.add_middleware(CORSMiddleware, allow_origins=CORS_ORIGINS, allow_credentials=False, allow_methods=["*"], allow_headers=["*"])
 
 
 @app.get("/api/health")
@@ -1451,3 +1450,15 @@ else:
     @app.get("/")
     def api_root():
         return {"service": "RIFT Arena API", "health": "/api/health", "docs": "/api/docs"}
+
+
+# Wrap the complete ASGI app after every route/mount has been registered so
+# CORS headers are present even on unhandled 500 responses.
+fastapi_app = app
+app = CORSMiddleware(
+    app=fastapi_app,
+    allow_origins=CORS_ORIGINS,
+    allow_credentials=False,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)

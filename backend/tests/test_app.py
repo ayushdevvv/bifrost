@@ -59,6 +59,20 @@ class RiftApiTests(unittest.TestCase):
         self.assertIn(origin, rift.CORS_ORIGINS)
         self.assertNotIn("*", rift.CORS_ORIGINS)
 
+        # The UI creates experiments with JSON POST requests, which trigger
+        # a browser preflight. Verify the same production origin is allowed.
+        post_preflight = self.client.options(
+            "/api/experiments",
+            headers={
+                "Origin": origin,
+                "Access-Control-Request-Method": "POST",
+                "Access-Control-Request-Headers": "content-type",
+            },
+        )
+        self.assertEqual(post_preflight.status_code, 200, post_preflight.text)
+        self.assertEqual(post_preflight.headers.get("access-control-allow-origin"), origin)
+        self.assertIn("POST", post_preflight.headers.get("access-control-allow-methods", ""))
+
     def test_unlisted_origin_is_not_allowed(self):
         origin = "https://not-riftz.example"
         preflight = self.client.options(

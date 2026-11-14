@@ -67,7 +67,7 @@ Neon guide: https://neon.com/docs/get-started/connect-neon
 
 ## Vercel + Render deployment (no Docker)
 
-Deploy the React + Vite frontend on Vercel and the FastAPI backend on Render. The frontend production API URL is configured as `https://riftz.onrender.com/api` in `frontend/.env.production`; `frontend/vercel.json` contains the SPA fallback. Follow [`VERCEL_RENDER_DEPLOY.md`](VERCEL_RENDER_DEPLOY.md) for exact settings and environment variables.
+Deploy the React + Vite frontend on Vercel and the FastAPI backend on Render. The frontend production API URL is configured as `https://bifrost-1-qmoa.onrender.com/api` in `frontend/.env.production`; `frontend/vercel.json` contains the SPA fallback. Follow [`VERCEL_RENDER_DEPLOY.md`](VERCEL_RENDER_DEPLOY.md) for exact settings and environment variables.
 
 ## Research Intelligence
 
@@ -78,7 +78,7 @@ The Research Intelligence workspace provides direct Tavily searches in Demo or L
 Start Bifrost and configure at least one provider/model route. Copy its OpenAI-compatible API URL and a virtual key into `backend/.env`:
 
 ```env
-BIFROST_BASE_URL=http://localhost:8080/v1
+BIFROST_BASE_URL=https://bifrost-deploy.onrender.com/v1
 BIFROST_API_KEY=YOUR_BIFROST_VIRTUAL_KEY
 BIFROST_MODEL=general
 ```
