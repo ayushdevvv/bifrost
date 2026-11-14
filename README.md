@@ -65,9 +65,9 @@ RIFT creates the required tables and indexes on startup. If `DATABASE_URL` is bl
 
 Neon guide: https://neon.com/docs/get-started/connect-neon
 
-## Render deployment (no Docker)
+## Vercel + Render deployment (no Docker)
 
-Deploy the FastAPI backend as a native Python Web Service and the React frontend as a separate Static Site. Follow [`RENDER_DEPLOY_NO_DOCKER.md`](RENDER_DEPLOY_NO_DOCKER.md) for exact Root Directory, Build Command, Start Command, and environment settings.
+Deploy the React + Vite frontend on Vercel and the FastAPI backend on Render. The frontend production API URL is configured as `https://riftz.onrender.com/api` in `frontend/.env.production`; `frontend/vercel.json` contains the SPA fallback. Follow [`VERCEL_RENDER_DEPLOY.md`](VERCEL_RENDER_DEPLOY.md) for exact settings and environment variables.
 
 ## Research Intelligence
 

@@ -44,7 +44,22 @@ UPSTREAM_OPENAI_BASE_URL = os.getenv("UPSTREAM_OPENAI_BASE_URL", "https://api.op
 UPSTREAM_OPENAI_API_KEY = os.getenv("UPSTREAM_OPENAI_API_KEY", "")
 RIFT_PROVIDER_FAULT_PROXY_ENABLED = os.getenv("RIFT_PROVIDER_FAULT_PROXY_ENABLED", "false").lower() == "true"
 SERVE_FRONTEND = os.getenv("SERVE_FRONTEND", "true").strip().lower() in {"1", "true", "yes"}
-CORS_ORIGINS = [origin.strip() for origin in os.getenv("CORS_ORIGINS", "*").split(",") if origin.strip()] or ["*"]
+# Production frontend is explicitly trusted by default. CORS_ORIGINS can add
+# further exact origins (for example, a custom domain); it is never required
+# to allow the primary Vercel deployment and wildcard origins are ignored.
+DEFAULT_CORS_ORIGINS = [
+    "https://riftz.vercel.app",
+    "http://localhost:5173",
+    "http://127.0.0.1:5173",
+    "http://localhost:3000",
+    "http://127.0.0.1:3000",
+]
+_EXTRA_CORS_ORIGINS = [
+    origin.strip().rstrip("/")
+    for origin in os.getenv("CORS_ORIGINS", "").split(",")
+    if origin.strip() and origin.strip() != "*"
+]
+CORS_ORIGINS = list(dict.fromkeys(DEFAULT_CORS_ORIGINS + _EXTRA_CORS_ORIGINS))
 
 TASKS: list[dict[str, Any]] = [
     {
@@ -1367,6 +1382,12 @@ def export_experiment(experiment_id: str):
 
 @app.websocket("/ws/{experiment_id}")
 async def websocket_events(ws: WebSocket, experiment_id: str):
+    # CORS middleware does not govern WebSocket handshakes, so enforce the same
+    # explicit origin allowlist here as well. Non-browser clients may omit Origin.
+    origin = ws.headers.get("origin")
+    if origin and origin.rstrip("/") not in CORS_ORIGINS:
+        await ws.close(code=1008)
+        return
     await hub.connect(experiment_id, ws)
     try:
         while True:

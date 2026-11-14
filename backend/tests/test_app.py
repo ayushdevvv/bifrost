@@ -41,6 +41,35 @@ class RiftApiTests(unittest.TestCase):
         self.assertEqual(self.client.get("/guides/AGENT_ADAPTER.md").status_code, 200)
         self.assertEqual(self.client.get("/api/docs").status_code, 200)
 
+    def test_production_vercel_origin_is_allowed_without_env_configuration(self):
+        origin = "https://riftz.vercel.app"
+        preflight = self.client.options(
+            "/api/health",
+            headers={
+                "Origin": origin,
+                "Access-Control-Request-Method": "GET",
+                "Access-Control-Request-Headers": "content-type",
+            },
+        )
+        self.assertEqual(preflight.status_code, 200, preflight.text)
+        self.assertEqual(preflight.headers.get("access-control-allow-origin"), origin)
+        actual = self.client.get("/api/health", headers={"Origin": origin})
+        self.assertEqual(actual.status_code, 200)
+        self.assertEqual(actual.headers.get("access-control-allow-origin"), origin)
+        self.assertIn(origin, rift.CORS_ORIGINS)
+        self.assertNotIn("*", rift.CORS_ORIGINS)
+
+    def test_unlisted_origin_is_not_allowed(self):
+        origin = "https://not-riftz.example"
+        preflight = self.client.options(
+            "/api/health",
+            headers={
+                "Origin": origin,
+                "Access-Control-Request-Method": "GET",
+            },
+        )
+        self.assertNotEqual(preflight.headers.get("access-control-allow-origin"), origin)
+
     def test_live_mode_fails_closed_without_credentials(self):
         old = (rift.BIFROST_BASE_URL, rift.BIFROST_API_KEY, rift.TAVILY_API_KEY)
         try:
