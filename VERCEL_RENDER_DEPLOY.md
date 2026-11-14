@@ -21,7 +21,7 @@ The frontend derives its WebSocket endpoint from this API URL, so it connects to
 wss://bifrost-1-qmoa.onrender.com/ws/{experiment_id}
 ```
 
-`frontend/vercel.json` provides the SPA fallback for client-side routes.
+`frontend/vercel.json` provides the SPA fallback and proxies `/mcp/` to the backend for remote AI-assistant connections.
 
 When deploying on Vercel:
 
@@ -69,6 +69,7 @@ CORS middleware wraps the entire ASGI app so that error responses also receive C
 3. In DevTools → Network, confirm `/api/...` requests go to `https://bifrost-1-qmoa.onrender.com/api/...`.
 4. Confirm experiment events connect to `wss://bifrost-1-qmoa.onrender.com/ws/...`.
 5. In the RIFT backend's settings/integration status, confirm the Bifrost gateway URL is `https://bifrost-deploy.onrender.com/v1` and that the virtual key is configured.
+6. Verify the remote assistant connector at `https://riftz.vercel.app/mcp/` after the backend redeploy completes.
 
 ## Notes
 
@@ -77,3 +78,7 @@ CORS middleware wraps the entire ASGI app so that error responses also receive C
 - Render Free services can spin down when idle; the first request after inactivity may be delayed.
 - Use Neon PostgreSQL for persistent benchmark data; SQLite on Render Free is not durable across restarts/redeploys.
 - No Dockerfile or Docker deployment is required for the RIFT backend.
+
+## Remote MCP connector
+
+RIFT now exposes a read-only MCP endpoint at `https://riftz.vercel.app/mcp/` for supported ChatGPT, Claude and other MCP clients. The endpoint is hosted by the existing RIFT FastAPI service; the separate Bifrost gateway is only used for model requests. See [`docs/MCP_CONNECTORS.md`](docs/MCP_CONNECTORS.md) for setup, available tools and the public-endpoint security note.

@@ -178,7 +178,7 @@ class RiftApiTests(unittest.TestCase):
         self.assertEqual(response.status_code, 200, response.text)
         result = response.json()
         self.assertTrue(result["simulated"])
-        self.assertEqual(result["provider"], "Demo evidence fixtures")
+        self.assertEqual(result["provider"], "RIFT preview dataset")
         self.assertEqual(len(result["sources"]), 3)
         self.assertTrue(result["evidence_hash"])
         detail = self.client.get(f"/api/research/snapshots/{result['id']}")
@@ -331,10 +331,10 @@ class RiftApiTests(unittest.TestCase):
                     return sources, meta, output, model
             sources, meta, output, model = asyncio.run(exercise())
             self.assertTrue(meta["simulated"])
-            self.assertEqual(meta["provider"], "Demo evidence fixtures")
+            self.assertEqual(meta["provider"], "RIFT preview dataset")
             self.assertTrue(model["simulated"])
             self.assertIsNone(model["input_tokens"])
-            self.assertTrue(output.startswith("Demo analysis:"))
+            self.assertTrue(output.startswith("Generated analysis:"))
             self.assertTrue(sources)
         finally:
             rift.BIFROST_BASE_URL, rift.BIFROST_API_KEY, rift.TAVILY_API_KEY = old

@@ -22,6 +22,13 @@ from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field, field_validator
 
+try:
+    from mcp.server.mcpserver import MCPServer
+    from mcp.server.transport_security import TransportSecuritySettings
+except ImportError:  # Keep lightweight API tests usable before backend dependencies are installed.
+    MCPServer = None
+    TransportSecuritySettings = None
+
 ROOT = Path(__file__).resolve().parents[1]
 DATABASE_URL = (os.getenv("DATABASE_URL") or os.getenv("NEON_DATABASE_URL") or "").strip()
 USE_POSTGRES = DATABASE_URL.startswith(("postgres://", "postgresql://"))
@@ -60,6 +67,19 @@ _EXTRA_CORS_ORIGINS = [
     if origin.strip() and origin.strip() != "*"
 ]
 CORS_ORIGINS = list(dict.fromkeys(DEFAULT_CORS_ORIGINS + _EXTRA_CORS_ORIGINS))
+
+# Public MCP tools are read-only: assistants can inspect benchmark data but cannot
+# launch runs, change settings, or trigger provider spend through this endpoint.
+MCP_SERVER = MCPServer(
+    "RIFT Arena",
+    version="0.4.0",
+    instructions=(
+        "RIFT Arena is an AI-agent benchmarking platform. Use these read-only tools "
+        "to inspect benchmark tasks, agents, experiments, run traces, evaluations, "
+        "leaderboards and saved research evidence. Do not claim to launch or modify "
+        "experiments: this connector is intentionally read-only."
+    ),
+) if MCPServer else None
 
 TASKS: list[dict[str, Any]] = [
     {
@@ -494,8 +514,8 @@ def get_run(run_id: str) -> dict[str, Any] | None:
 
 
 async def tavily_search(query: str, run: dict[str, Any], task: dict[str, Any], emit_event, call_index: int = 1) -> tuple[list[dict[str, Any]], dict[str, Any]]:
-    # Demo is always offline and synthetic, even when real credentials are configured.
-    # This prevents an accidental paid API call when the user explicitly selects Demo.
+    # Generated baseline mode never uses external providers, even when real credentials are configured.
+    # This prevents accidental provider usage when a generated baseline is selected.
     if run["mode"] == "live" and TAVILY_API_KEY:
         async with httpx.AsyncClient(timeout=35) as client:
             response = await client.post(
@@ -510,33 +530,33 @@ async def tavily_search(query: str, run: dict[str, Any], task: dict[str, Any], e
             for x in data.get("results", [])
         ]
         return results, {"provider": "Tavily", "answer": data.get("answer"), "simulated": False}
-    # Explicit offline fixtures for demo mode only.
+    # Generated evidence fixtures are used only for the generated baseline.
     if run["mode"] != "demo":
         raise RuntimeError("TAVILY_API_KEY is required for live runs")
     words = task["prompt"].split()
     topic = " ".join(words[:8])
     results = [
-        {"title": "Official documentation overview", "url": "https://docs.example.invalid/official-overview", "content": f"Demo fixture for {topic}. Official documentation describes tool access, model routing, request traces, latency and operational controls. This is synthetic benchmark content, not a real web result.", "score": 0.97, "source": "demo fixture"},
-        {"title": "Engineering implementation notes", "url": "https://engineering.example.invalid/implementation", "content": f"Demo fixture for {topic}. The engineering notes cover routing, fallbacks, source verification, telemetry, timeouts and reliability trade-offs. This is synthetic benchmark content, not a real web result.", "score": 0.91, "source": "demo fixture"},
-        {"title": "Independent architecture review", "url": "https://review.example.invalid/architecture", "content": "Demo fixture discussing evidence quality, untrusted tool output, permissions, trace correlation, latency budgets and resilience. Synthetic content.", "score": 0.86, "source": "demo fixture"},
+        {"title": "Official documentation overview", "url": "https://docs.example.invalid/official-overview", "content": f"Generated preview evidence for {topic}. Official documentation describes tool access, model routing, request traces, latency and operational controls. This is synthetic benchmark content, not a real web result.", "score": 0.97, "source": "RIFT generated dataset"},
+        {"title": "Engineering implementation notes", "url": "https://engineering.example.invalid/implementation", "content": f"Generated preview evidence for {topic}. The engineering notes cover routing, fallbacks, source verification, telemetry, timeouts and reliability trade-offs. This is synthetic benchmark content, not a real web result.", "score": 0.91, "source": "RIFT generated dataset"},
+        {"title": "Independent architecture review", "url": "https://review.example.invalid/architecture", "content": "Preview record discussing evidence quality, untrusted tool output, permissions, trace correlation, latency budgets and resilience. Synthetic content.", "score": 0.86, "source": "RIFT generated dataset"},
     ]
-    return results, {"provider": "Demo evidence fixtures", "answer": None, "simulated": True}
+    return results, {"provider": "RIFT preview dataset", "answer": None, "simulated": True}
 
 
 async def bifrost_chat(messages: list[dict[str, str]], run: dict[str, Any], call_index: int = 1) -> tuple[str, dict[str, Any]]:
-    # Demo never contacts a model gateway, even if keys are present in the environment.
+    # Generated baseline execution never contacts a model gateway, even when keys are present.
     if run["mode"] == "demo":
-        # A transparent local fallback used only for the offline demo.
+        # Deterministic generated response used only for the generated baseline.
         task_text = messages[-1]["content"] if messages else ""
         urls = re.findall(r"https?://[^\s|]+", task_text)
         citations = "\n\nSources:\n" + "\n".join(dict.fromkeys(urls[:3])) if urls else ""
         answer = (
-            "Demo analysis: The strongest approach combines a unified model gateway, controlled tool permissions, "
+            "Generated analysis: The strongest approach combines a unified model gateway, controlled tool permissions, "
             "request tracing and evidence-backed research. Provider routing and fallback policies improve resilience; "
             "tool events and latency spans are needed to explain complete agent execution. Retrieved pages are treated "
             "as untrusted evidence, and factual claims require source verification. " + task_text[:120] + citations
         )
-        return answer, {"model": "RIFT local demo model", "input_tokens": None, "output_tokens": None, "simulated": True}
+        return answer, {"model": "RIFT generated model", "input_tokens": None, "output_tokens": None, "simulated": True}
 
     if not BIFROST_BASE_URL or not BIFROST_API_KEY:
         raise RuntimeError("BIFROST_BASE_URL and BIFROST_API_KEY are required for live runs")
@@ -698,17 +718,17 @@ async def execute_run(run_id: str, agent: dict[str, Any], task: dict[str, Any]) 
             output, model_meta = await execute_webhook_agent(agent, task, run, sources, lambda typ, payload: emit(experiment_id, run_id, typ, payload))
         elif provider_fault and mode == "demo":
             await emit(experiment_id, run_id, "provider.request.failed", {"provider": "primary model route", "status_code": 503, "injected": True, "mode": "demo"})
-            await emit(experiment_id, run_id, "provider.fallback.started", {"route": "demo fallback path"})
+            await emit(experiment_id, run_id, "provider.fallback.started", {"route": "generated fallback path"})
             model_call_count += 2
             await asyncio.sleep(0.06)
             output, model_meta = await bifrost_chat(messages, run, 2)
-            await emit(experiment_id, run_id, "provider.fallback.completed", {"route": "demo fallback path", "status": "recovered"})
+            await emit(experiment_id, run_id, "provider.fallback.completed", {"route": "generated fallback path", "status": "recovered"})
             provider_recovered = True
         elif provider_fault and mode == "live" and not RIFT_PROVIDER_FAULT_PROXY_ENABLED:
             # Do not pretend an adapter-side error tests Bifrost upstream failover.
             raise RuntimeError("Live provider fault testing requires RIFT_PROVIDER_FAULT_PROXY_ENABLED=true and the Bifrost custom provider pointed at the RIFT fault proxy. See docs/BIFROST_SETUP.md.")
         else:
-            await emit(experiment_id, run_id, "model.request.started", {"gateway": "Bifrost" if BIFROST_BASE_URL else "RIFT demo", "model": run.get("model") or BIFROST_MODEL})
+            await emit(experiment_id, run_id, "model.request.started", {"gateway": "Bifrost" if BIFROST_BASE_URL else "RIFT generated baseline", "model": run.get("model") or BIFROST_MODEL})
             model_call_count += 1
             try:
                 output, model_meta = await bifrost_chat(messages, run, 1)
@@ -865,13 +885,17 @@ async def execute_experiment(experiment_id: str) -> None:
 async def lifespan(app: FastAPI):
     init_db()
     try:
-        yield
+        if MCP_SERVER is not None:
+            async with MCP_SERVER.session_manager.run():
+                yield
+        else:
+            yield
     finally:
         if USE_POSTGRES and _PG_POOL is not None:
             _PG_POOL.close()
 
 
-app = FastAPI(title="RIFT Arena API", version="0.3.0", docs_url="/api/docs", redoc_url="/api/redoc", lifespan=lifespan)
+app = FastAPI(title="RIFT Arena API", version="0.4.0", docs_url="/api/docs", redoc_url="/api/redoc", lifespan=lifespan)
 
 
 @app.get("/api/health")
@@ -879,7 +903,12 @@ def health():
     
     with db() as conn:
         conn.execute("SELECT 1")
-    return {"status": "ok", "service": "rift-arena", "version": "0.3.0", "database": "neon-postgres" if USE_POSTGRES else "local-sqlite", "timestamp": now_iso()}
+    return {
+        "status": "ok", "service": "rift-arena", "version": "0.4.0",
+        "database": "neon-postgres" if USE_POSTGRES else "sqlite",
+        "mcp": {"enabled": MCP_SERVER is not None, "endpoint": "/mcp/" if MCP_SERVER is not None else None},
+        "timestamp": now_iso(),
+    }
 
 
 @app.get("/api/overview")
@@ -899,7 +928,7 @@ def overview():
         "experiments": experiments, "runs": total, "completed": completed, "failed": failed,
         "avg_quality": avg_quality, "success_rate": success_rate,
         "recent_experiments": [{**as_dict(r), "agent_ids": parse_json(r["agent_ids"], []), "task_ids": parse_json(r["task_ids"], []), "models": parse_json(r["models"], []), "faults": parse_json(r["faults"], {})} for r in recent],
-        "integrations": {"bifrost": bool(BIFROST_BASE_URL and BIFROST_API_KEY), "tavily": bool(TAVILY_API_KEY), "mode": "live" if (BIFROST_BASE_URL and BIFROST_API_KEY and TAVILY_API_KEY) else "demo"},
+        "integrations": {"bifrost": bool(BIFROST_BASE_URL and BIFROST_API_KEY), "tavily": bool(TAVILY_API_KEY), "mode": "connected" if (BIFROST_BASE_URL and BIFROST_API_KEY and TAVILY_API_KEY) else "setup required"},
     }
 
 
@@ -936,14 +965,14 @@ async def research_search(body: ResearchSearch):
         except httpx.HTTPError as exc:
             raise HTTPException(502, f"Tavily could not be reached: {type(exc).__name__}") from exc
     else:
-        provider = "Demo evidence fixtures"
-        answer = "Synthetic preview only. Switch to Live mode to retrieve current web sources from Tavily."
+        provider = "RIFT preview dataset"
+        answer = "Generated evidence only. Switch to Live execution to retrieve current web sources from Tavily."
         words = body.query.strip().split()
         topic = " ".join(words[:10])
         sources = [
-            {"title": "Official documentation preview", "url": "https://docs.example.invalid/research-preview", "content": f"Synthetic demo evidence for {topic}. This fixture illustrates how RIFT presents official documentation, source passages and relevance metadata. It is not a real source.", "score": 0.97, "published_date": None, "source": "Demo fixture", "synthetic": True},
-            {"title": "Engineering analysis preview", "url": "https://engineering.example.invalid/research-preview", "content": f"Synthetic demo evidence for {topic}. This fixture represents an engineering analysis with implementation context, limitations and trade-offs. It is not a real source.", "score": 0.91, "published_date": None, "source": "Demo fixture", "synthetic": True},
-            {"title": "Independent review preview", "url": "https://review.example.invalid/research-preview", "content": f"Synthetic demo evidence for {topic}. This fixture represents an independent review and should not be treated as factual evidence.", "score": 0.86, "published_date": None, "source": "Demo fixture", "synthetic": True},
+            {"title": "Official documentation preview", "url": "https://docs.example.invalid/research-preview", "content": f"Generated preview evidence for {topic}. This fixture illustrates how RIFT presents official documentation, source passages and relevance metadata. It is not a real source.", "score": 0.97, "published_date": None, "source": "RIFT generated dataset", "synthetic": True},
+            {"title": "Engineering analysis preview", "url": "https://engineering.example.invalid/research-preview", "content": f"Generated preview evidence for {topic}. This fixture represents an engineering analysis with implementation context, limitations and trade-offs. It is not a real source.", "score": 0.91, "published_date": None, "source": "RIFT generated dataset", "synthetic": True},
+            {"title": "Independent review preview", "url": "https://review.example.invalid/research-preview", "content": f"Generated preview evidence for {topic}. This fixture represents an independent review and should not be treated as factual evidence.", "score": 0.86, "published_date": None, "source": "RIFT generated dataset", "synthetic": True},
         ][:body.max_results]
         simulated = True
     elapsed = int((time.perf_counter() - started) * 1000)
@@ -1256,7 +1285,7 @@ def integrations():
     return {
         "bifrost": {"configured": bool(BIFROST_BASE_URL and BIFROST_API_KEY), "base_url": BIFROST_BASE_URL, "model": BIFROST_MODEL, "fault_proxy_enabled": RIFT_PROVIDER_FAULT_PROXY_ENABLED},
         "tavily": {"configured": bool(TAVILY_API_KEY), "base_url": TAVILY_BASE_URL},
-        "mode": "live configured" if (BIFROST_BASE_URL and BIFROST_API_KEY and TAVILY_API_KEY) else "demo mode",
+        "mode": "connected" if (BIFROST_BASE_URL and BIFROST_API_KEY and TAVILY_API_KEY) else "setup required",
         "database": {"type": "neon-postgres" if USE_POSTGRES else "local-sqlite", "configured": bool(DATABASE_URL) if USE_POSTGRES else True},
         "cost_rates_configured": bool(os.getenv("MODEL_INPUT_COST_PER_1M") and os.getenv("MODEL_OUTPUT_COST_PER_1M")),
         "tavily_cost_configured": bool(os.getenv("TAVILY_COST_PER_SEARCH")),
@@ -1434,6 +1463,104 @@ async def provider_fault_proxy(payload: dict[str, Any], authorization: str | Non
         return JSONResponse(status_code=upstream.status_code, content={"error": {"message": upstream.text[:500]}})
 
 
+# Remote MCP connector for ChatGPT, Claude and other MCP-compatible clients.
+# The MCP SDK is optional during lightweight unit tests, but pinned in requirements
+# so the deployed Render service always exposes the endpoint.
+if MCP_SERVER is not None:
+    @MCP_SERVER.tool()
+    def rift_get_overview() -> dict[str, Any]:
+        """Get current RIFT experiment totals, completion metrics and quality rates."""
+        return overview()
+
+    @MCP_SERVER.tool()
+    def rift_list_tasks() -> dict[str, Any]:
+        """List the benchmark task suite and each task's evaluation objective."""
+        return list_tasks()
+
+    @MCP_SERVER.tool()
+    def rift_list_agents() -> dict[str, Any]:
+        """List registered agents without exposing their private adapter endpoint URLs."""
+        payload = list_agents()
+        safe_agents = [{key: value for key, value in agent.items() if key != "endpoint"} for agent in payload.get("agents", [])]
+        return {"agents": safe_agents}
+
+    @MCP_SERVER.tool()
+    def rift_list_experiments(limit: int = 20) -> dict[str, Any]:
+        """List recent benchmark experiments. Limit is clamped to 1–100."""
+        return list_experiments(limit)
+
+    @MCP_SERVER.tool()
+    def rift_get_experiment(experiment_id: str) -> dict[str, Any]:
+        """Get one experiment, its configuration, and associated run summaries."""
+        try:
+            return get_experiment(experiment_id)
+        except HTTPException as exc:
+            return {"error": str(exc.detail), "status_code": exc.status_code}
+
+    @MCP_SERVER.tool()
+    def rift_list_runs(limit: int = 30) -> dict[str, Any]:
+        """List recent agent executions and their measured results."""
+        return list_runs(limit)
+
+    @MCP_SERVER.tool()
+    def rift_get_run(run_id: str) -> dict[str, Any]:
+        """Get a run result, sources, metrics and ordered observable event trace."""
+        try:
+            return run_detail(run_id)
+        except HTTPException as exc:
+            return {"error": str(exc.detail), "status_code": exc.status_code}
+
+    @MCP_SERVER.tool()
+    def rift_get_leaderboard() -> dict[str, Any]:
+        """Get the leaderboard ranked from recorded benchmark outcomes."""
+        return leaderboard()
+
+    @MCP_SERVER.tool()
+    def rift_get_evaluation_summary() -> dict[str, Any]:
+        """Get aggregate quality, evidence, citation-integrity and resilience metrics."""
+        return evaluation_summary()
+
+    @MCP_SERVER.tool()
+    def rift_get_experiment_report(experiment_id: str) -> dict[str, Any]:
+        """Get the grouped comparison report for a completed or running experiment."""
+        try:
+            return experiment_report(experiment_id)
+        except HTTPException as exc:
+            return {"error": str(exc.detail), "status_code": exc.status_code}
+
+    @MCP_SERVER.tool()
+    def rift_list_research_snapshots(limit: int = 10) -> dict[str, Any]:
+        """List saved research evidence snapshots and their content hashes."""
+        return research_snapshots(limit)
+
+    @MCP_SERVER.tool()
+    def rift_get_research_snapshot(snapshot_id: str) -> dict[str, Any]:
+        """Retrieve the source passages from a saved research evidence snapshot."""
+        try:
+            return research_snapshot_detail(snapshot_id)
+        except HTTPException as exc:
+            return {"error": str(exc.detail), "status_code": exc.status_code}
+
+    _mcp_hostname = os.getenv("RENDER_EXTERNAL_HOSTNAME", "bifrost-1-qmoa.onrender.com")
+    _mcp_allowed_hosts = list(dict.fromkeys([
+        _mcp_hostname, f"{_mcp_hostname}:*",
+        "bifrost-1-qmoa.onrender.com", "bifrost-1-qmoa.onrender.com:*",
+        "riftz.vercel.app", "riftz.vercel.app:*",
+        "localhost:*", "127.0.0.1:*",
+    ]))
+    _mcp_transport_security = TransportSecuritySettings(
+        allowed_hosts=_mcp_allowed_hosts,
+        allowed_origins=CORS_ORIGINS,
+    )
+    _mcp_asgi_app = MCP_SERVER.streamable_http_app(
+        streamable_http_path="/",
+        stateless_http=True,
+        json_response=True,
+        transport_security=_mcp_transport_security,
+    )
+    app.mount("/mcp", _mcp_asgi_app, name="rift-mcp")
+
+
 # Static files are optional. On Render, the React app is deployed as a separate
 # Static Site and this process serves only the API + WebSocket endpoints.
 if SERVE_FRONTEND:
@@ -1464,4 +1591,5 @@ app = CORSMiddleware(
     allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
+    expose_headers=["Mcp-Session-Id"],
 )

@@ -9,7 +9,7 @@ RIFT Arena is a React + FastAPI platform for framework-independent AI agent benc
 - React 19 + Vite 8
 - Three.js + React Three Fiber 9 + Drei
 - FastAPI + Pydantic
-- Neon PostgreSQL (via psycopg 3); local SQLite fallback for offline development
+- Neon PostgreSQL (via psycopg 3); SQLite fallback for development
 - Bifrost OpenAI-compatible model gateway
 - Tavily Search API
 - WebSockets for live event streaming
@@ -30,7 +30,7 @@ RIFT ships with 11 separate workspaces:
 | Deep Evaluation | Review answer quality, evidence, citation integrity and resilience metrics |
 | Compare | Compare agent and model configurations in matched experiments |
 | Leaderboard | Rank completed configurations by measured outcomes |
-| Settings | Verify Bifrost, Tavily and database connectivity; view setup guidance |
+| Settings | Verify connected services and configure assistant integrations |
 
 The eight core feature areas are agent benchmarking, chaos testing, the 3D execution arena, deep evaluation, model-versus-agent analysis, live web intelligence, detailed run inspection, and leaderboard/comparison. Settings and agent onboarding support those workflows.
 
@@ -71,7 +71,7 @@ Deploy the React + Vite frontend on Vercel and the FastAPI backend on Render. Th
 
 ## Research Intelligence
 
-The Research Intelligence workspace provides direct Tavily searches in Demo or Live mode. Each search is stored as an evidence snapshot with its query, source list, provider, creation time and content hash. Demo results use `.invalid` synthetic fixtures and are always labelled; they are not real web evidence. Live searches require `TAVILY_API_KEY`.
+The Research Intelligence workspace provides Tavily searches and an explicitly labelled preview dataset when live search is not selected. Each search is stored as an evidence snapshot with its query, source list, provider, creation time and content hash. Preview records use `.invalid` fixture domains and are not real web evidence. Live searches require `TAVILY_API_KEY`.
 
 ## Bifrost setup
 
@@ -139,3 +139,7 @@ python -m unittest discover -s backend/tests -v
 ## Production checklist
 
 Before exposing a public instance, add authentication, per-workspace authorization, rate limits, tenant isolation, adapter egress allowlists, secret rotation, retention controls, stronger isolation for untrusted agent containers, and a production connection pool. Keep the prototype on localhost or a trusted private network.
+
+## AI assistant connector
+
+RIFT exposes a public read-only remote MCP endpoint at `https://riftz.vercel.app/mcp/` for supported ChatGPT, Claude and other MCP clients. It can inspect tasks, agents, experiments, run traces, leaderboard metrics and saved research evidence. It cannot launch or modify runs. See [`docs/MCP_CONNECTORS.md`](docs/MCP_CONNECTORS.md) for setup and security limitations.
