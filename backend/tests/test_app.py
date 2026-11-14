@@ -99,11 +99,23 @@ class RiftApiTests(unittest.TestCase):
         finally:
             rift.BIFROST_BASE_URL, rift.BIFROST_API_KEY, rift.TAVILY_API_KEY = old
 
-    def test_seeded_decisions_are_repeatable_and_agent_independent(self):
+    def test_seeded_decisions_are_repeatable_agent_independent_and_postgres_safe(self):
         seed_a = rift.seed_for(42017, "exp-test", "research-001", 1)
         seed_b = rift.seed_for(42017, "exp-test", "research-001", 1)
         self.assertEqual(seed_a, seed_b)
         self.assertEqual(seed_a, rift.seed_for(42017, "a-different-experiment", "research-001", 1))
+
+        # Regression: this exact task previously generated 3,110,144,037,
+        # overflowing PostgreSQL's signed INTEGER column for runs.seed.
+        formerly_overflowing_seed = rift.seed_for(42017, "exp-test", "research-002", 1)
+        self.assertGreaterEqual(formerly_overflowing_seed, 0)
+        self.assertLessEqual(formerly_overflowing_seed, 2**31 - 1)
+        for task_id in ("research-001", "research-002", "research-003", "research-010"):
+            for repetition in range(1, 6):
+                value = rift.seed_for(2**31 - 1, "exp-test", task_id, repetition)
+                self.assertGreaterEqual(value, 0)
+                self.assertLessEqual(value, 2**31 - 1)
+
         first = [rift.selected(seed_a, "poison", i, 0.5) for i in range(1, 10)]
         second = [rift.selected(seed_b, "poison", i, 0.5) for i in range(1, 10)]
         self.assertEqual(first, second)

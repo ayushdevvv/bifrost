@@ -77,3 +77,7 @@ CORS middleware wraps the entire ASGI app so that error responses also receive C
 - Render Free services can spin down when idle; the first request after inactivity may be delayed.
 - Use Neon PostgreSQL for persistent benchmark data; SQLite on Render Free is not durable across restarts/redeploys.
 - No Dockerfile or Docker deployment is required for the RIFT backend.
+
+## 5. PostgreSQL integer overflow fix
+
+Run seeds are now masked to the non-negative signed 32-bit range (`0` to `2,147,483,647`) before insertion. This prevents PostgreSQL `INTEGER` overflow in `runs.seed`; no database schema migration or manual SQL change is required. The seed remains deterministic for the same master seed, task, and repetition.

@@ -443,8 +443,11 @@ def parse_json(value: str | None, fallback: Any = None) -> Any:
 def seed_for(master: int, experiment_id: str, task_id: str, repetition: int) -> int:
     # Experiment and agent IDs are intentionally excluded: the same master seed,
     # task version and repetition reproduce the same fault plan across experiments.
+    # PostgreSQL INTEGER is a signed 32-bit type (max 2,147,483,647). Mask the
+    # 32-bit hash to 31 non-negative bits so every generated run seed fits both
+    # PostgreSQL INTEGER and SQLite INTEGER without requiring a schema migration.
     raw = f"{master}:{task_id}:{repetition}".encode()
-    return int(hashlib.sha256(raw).hexdigest()[:8], 16)
+    return int(hashlib.sha256(raw).hexdigest()[:8], 16) & 0x7FFFFFFF
 
 
 def selected(seed: int, fault: str, call_index: int, probability: float) -> bool:
