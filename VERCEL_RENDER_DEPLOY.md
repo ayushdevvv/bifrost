@@ -81,4 +81,4 @@ CORS middleware wraps the entire ASGI app so that error responses also receive C
 
 ## Remote MCP connector
 
-RIFT now exposes a read-only MCP endpoint at `https://riftz.vercel.app/mcp/` for supported ChatGPT, Claude and other MCP clients. The endpoint is hosted by the existing RIFT FastAPI service; the separate Bifrost gateway is only used for model requests. See [`docs/MCP_CONNECTORS.md`](docs/MCP_CONNECTORS.md) for setup, available tools and the public-endpoint security note.
+RIFT now exposes a full read-only MCP endpoint at `https://riftz.vercel.app/mcp/` with 21 read-only tools, 2 resources and an analysis prompt. It covers persisted benchmark tasks, agents, experiment configuration, runs, event traces, research/evidence snapshots, evaluations, reports and leaderboard data. The endpoint is hosted by the existing RIFT FastAPI service; the separate Bifrost gateway is only used for model requests. See [`docs/MCP_CONNECTORS.md`](docs/MCP_CONNECTORS.md) for setup, plan availability and the public-endpoint security note.

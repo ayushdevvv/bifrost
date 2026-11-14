@@ -25,9 +25,11 @@ from pydantic import BaseModel, Field, field_validator
 try:
     from mcp.server.mcpserver import MCPServer
     from mcp.server.transport_security import TransportSecuritySettings
+    from mcp.types import ToolAnnotations
 except ImportError:  # Keep lightweight API tests usable before backend dependencies are installed.
     MCPServer = None
     TransportSecuritySettings = None
+    ToolAnnotations = None
 
 ROOT = Path(__file__).resolve().parents[1]
 DATABASE_URL = (os.getenv("DATABASE_URL") or os.getenv("NEON_DATABASE_URL") or "").strip()
@@ -74,10 +76,13 @@ MCP_SERVER = MCPServer(
     "RIFT Arena",
     version="0.4.0",
     instructions=(
-        "RIFT Arena is an AI-agent benchmarking platform. Use these read-only tools "
-        "to inspect benchmark tasks, agents, experiments, run traces, evaluations, "
-        "leaderboards and saved research evidence. Do not claim to launch or modify "
-        "experiments: this connector is intentionally read-only."
+        "RIFT Arena is an AI-agent benchmarking platform. This connector provides full read-only "
+        "access to the persisted workspace data: overview, benchmark tasks, agent configurations, "
+        "experiment settings, all runs, ordered event traces, evidence snapshots, research sources, "
+        "evaluation metrics, comparison reports, leaderboard and safe integration status. Start with "
+        "rift_get_data_catalog or rift_search_workspace, then fetch full records by ID. Use pagination "
+        "for large lists. Every exposed tool is read-only; never claim to create, launch, cancel, edit, "
+        "delete or reconfigure anything. The connector never calls Bifrost or Tavily."
     ),
 ) if MCPServer else None
 
@@ -1464,82 +1469,297 @@ async def provider_fault_proxy(payload: dict[str, Any], authorization: str | Non
 
 
 # Remote MCP connector for ChatGPT, Claude and other MCP-compatible clients.
-# The MCP SDK is optional during lightweight unit tests, but pinned in requirements
-# so the deployed Render service always exposes the endpoint.
+# It exposes the complete read-only RIFT data surface: overview, suite, agents,
+# experiments, runs, traces/events, comparison reports, evaluations, leaderboard,
+# research snapshots, experiment evidence, and safe integration metadata.
+# No MCP tool mutates data or calls Bifrost/Tavily.
 if MCP_SERVER is not None:
-    @MCP_SERVER.tool()
+    _MCP_READ_ONLY = ToolAnnotations(read_only_hint=True, open_world_hint=False) if ToolAnnotations else None
+
+    @MCP_SERVER.tool(annotations=_MCP_READ_ONLY)
     def rift_get_overview() -> dict[str, Any]:
-        """Get current RIFT experiment totals, completion metrics and quality rates."""
+        """Read the RIFT dashboard overview, totals, success rates and recent experiments. Use this first for a workspace summary."""
         return overview()
 
-    @MCP_SERVER.tool()
+    @MCP_SERVER.tool(annotations=_MCP_READ_ONLY)
+    def rift_get_data_catalog() -> dict[str, Any]:
+        """Describe every RIFT data area and the read-only MCP tools available to inspect it."""
+        return {
+            "workspace": "RIFT Arena",
+            "access": "read-only",
+            "areas": [
+                {"name": "Overview", "data": ["experiment totals", "run totals", "success rate", "average quality", "recent experiments"]},
+                {"name": "Benchmark tasks", "data": ["task IDs", "titles", "prompts", "categories", "difficulty", "evaluation objectives"]},
+                {"name": "Agents", "data": ["agent IDs", "names", "frameworks", "models", "strategies", "descriptions"], "private_fields_excluded": ["adapter endpoint URL"]},
+                {"name": "Experiments", "data": ["configuration", "selected agents", "models", "tasks", "repetitions", "fault settings", "budgets", "status", "timestamps"]},
+                {"name": "Runs and traces", "data": ["per-run results", "metrics", "errors", "sources", "ordered execution events", "event payloads"]},
+                {"name": "Deep evaluation", "data": ["quality", "evidence", "citation integrity", "latency", "tokens", "cost completeness", "poison resistance", "provider recovery"]},
+                {"name": "Comparisons and leaderboard", "data": ["experiment comparison reports", "agent/model rankings", "aggregate metrics"]},
+                {"name": "Research intelligence", "data": ["saved research queries", "answers", "source passages", "evidence hashes", "providers", "timestamps"]},
+                {"name": "Chaos/evidence records", "data": ["per-experiment evidence snapshots", "source records", "event history"]},
+                {"name": "Integrations", "data": ["configured/not-configured flags", "model name", "database type"], "private_fields_excluded": ["API keys", "passwords", "tokens", "secrets"]},
+            ],
+            "tools": [
+                "rift_search_workspace", "rift_get_overview", "rift_get_data_catalog", "rift_list_tasks", "rift_get_task",
+                "rift_list_agents", "rift_get_agent", "rift_list_experiments", "rift_get_experiment",
+                "rift_list_runs", "rift_get_run", "rift_get_run_events", "rift_list_events",
+                "rift_get_experiment_evidence", "rift_get_leaderboard", "rift_get_evaluation_summary",
+                "rift_get_experiment_report", "rift_list_research_snapshots", "rift_get_research_snapshot",
+                "rift_get_integration_status", "rift_get_database_summary"
+            ],
+            "write_actions_exposed": False,
+            "provider_calls_from_connector": False,
+        }
+
+    @MCP_SERVER.tool(annotations=_MCP_READ_ONLY)
+    def rift_search_workspace(query: str, entity_types: list[str] | None = None, limit: int = 20) -> dict[str, Any]:
+        """Search RIFT tasks, agents, experiments, runs, saved research and event traces by text. Use this to discover IDs before fetching full details."""
+        q = str(query or "").strip()
+        if len(q) < 2:
+            return {"query": q, "results": [], "message": "Enter at least two characters."}
+        allowed = {"tasks", "agents", "experiments", "runs", "research", "events"}
+        selected_types = set(entity_types or allowed) & allowed
+        limit = max(1, min(int(limit), 100))
+        pattern = f"%{q.lower()}%"
+        results: list[dict[str, Any]] = []
+
+        if "tasks" in selected_types:
+            for task in TASKS:
+                searchable = " ".join(str(task.get(k, "")) for k in ("id", "title", "category", "difficulty", "prompt", "expected")).lower()
+                if q.lower() in searchable:
+                    results.append({"type": "task", "id": task["id"], "title": task["title"], "category": task.get("category"), "difficulty": task.get("difficulty"), "summary": task.get("prompt", "")[:500]})
+
+        with db() as conn:
+            if "agents" in selected_types:
+                rows = conn.execute("SELECT id,name,kind,framework,description,model,strategy,created_at FROM agents WHERE LOWER(name) LIKE ? OR LOWER(framework) LIKE ? OR LOWER(description) LIKE ? OR LOWER(model) LIKE ? ORDER BY created_at DESC LIMIT ?", (pattern, pattern, pattern, pattern, limit)).fetchall()
+                results.extend({"type": "agent", **as_dict(r)} for r in rows)
+
+            if "experiments" in selected_types:
+                rows = conn.execute("SELECT id,title,mode,suite_id,status,created_at,completed_at FROM experiments WHERE LOWER(id) LIKE ? OR LOWER(title) LIKE ? OR LOWER(status) LIKE ? OR LOWER(mode) LIKE ? ORDER BY created_at DESC LIMIT ?", (pattern, pattern, pattern, pattern, limit)).fetchall()
+                results.extend({"type": "experiment", **as_dict(r)} for r in rows)
+
+            if "runs" in selected_types:
+                rows = conn.execute("SELECT r.id,r.experiment_id,r.agent_id,a.name AS agent_name,r.task_id,r.model,r.status,r.started_at,r.completed_at,r.result FROM runs r LEFT JOIN agents a ON a.id=r.agent_id WHERE LOWER(r.id) LIKE ? OR LOWER(r.experiment_id) LIKE ? OR LOWER(r.agent_id) LIKE ? OR LOWER(a.name) LIKE ? OR LOWER(r.task_id) LIKE ? OR LOWER(r.model) LIKE ? OR LOWER(r.status) LIKE ? ORDER BY COALESCE(r.started_at,r.completed_at) DESC LIMIT ?", (pattern, pattern, pattern, pattern, pattern, pattern, pattern, limit)).fetchall()
+                for row in rows:
+                    item = as_dict(row)
+                    item["result"] = parse_json(item.get("result"), {})
+                    results.append({"type": "run", **item})
+
+            if "research" in selected_types:
+                rows = conn.execute("SELECT id,query,mode,provider,evidence_hash,created_at,answer FROM research_snapshots WHERE LOWER(id) LIKE ? OR LOWER(query) LIKE ? OR LOWER(COALESCE(answer,'')) LIKE ? ORDER BY created_at DESC LIMIT ?", (pattern, pattern, pattern, limit)).fetchall()
+                results.extend({"type": "research_snapshot", **as_dict(r)} for r in rows)
+
+            if "events" in selected_types:
+                rows = conn.execute("SELECT id,experiment_id,run_id,sequence,event_type,timestamp,payload FROM events WHERE LOWER(event_type) LIKE ? OR LOWER(payload) LIKE ? OR LOWER(run_id) LIKE ? OR LOWER(experiment_id) LIKE ? ORDER BY timestamp DESC LIMIT ?", (pattern, pattern, pattern, pattern, limit)).fetchall()
+                for row in rows:
+                    item = as_dict(row)
+                    item["payload"] = parse_json(item.get("payload"), {})
+                    results.append({"type": "event", **item})
+
+        results.sort(key=lambda x: str(x.get("created_at") or x.get("timestamp") or x.get("completed_at") or ""), reverse=True)
+        return {"query": q, "entity_types": sorted(selected_types), "count": len(results[:limit]), "results": results[:limit]}
+
+    @MCP_SERVER.tool(annotations=_MCP_READ_ONLY)
     def rift_list_tasks() -> dict[str, Any]:
-        """List the benchmark task suite and each task's evaluation objective."""
+        """List the full benchmark task suite, including task prompts and evaluation objectives."""
         return list_tasks()
 
-    @MCP_SERVER.tool()
+    @MCP_SERVER.tool(annotations=_MCP_READ_ONLY)
+    def rift_get_task(task_id: str) -> dict[str, Any]:
+        """Fetch one benchmark task by ID, including its full prompt and scoring expectations."""
+        task = next((item for item in TASKS if item["id"] == task_id), None)
+        return task or {"error": "Task not found", "task_id": task_id}
+
+    @MCP_SERVER.tool(annotations=_MCP_READ_ONLY)
     def rift_list_agents() -> dict[str, Any]:
-        """List registered agents without exposing their private adapter endpoint URLs."""
+        """List every registered agent and its public configuration. Private adapter endpoint URLs are excluded."""
         payload = list_agents()
         safe_agents = [{key: value for key, value in agent.items() if key != "endpoint"} for agent in payload.get("agents", [])]
         return {"agents": safe_agents}
 
-    @MCP_SERVER.tool()
-    def rift_list_experiments(limit: int = 20) -> dict[str, Any]:
-        """List recent benchmark experiments. Limit is clamped to 1–100."""
-        return list_experiments(limit)
+    @MCP_SERVER.tool(annotations=_MCP_READ_ONLY)
+    def rift_get_agent(agent_id: str) -> dict[str, Any]:
+        """Fetch an agent's full public configuration by ID, excluding its private adapter endpoint URL."""
+        agent = get_agent(agent_id)
+        if not agent:
+            return {"error": "Agent not found", "agent_id": agent_id}
+        return {key: value for key, value in agent.items() if key != "endpoint"}
 
-    @MCP_SERVER.tool()
+    @MCP_SERVER.tool(annotations=_MCP_READ_ONLY)
+    def rift_list_experiments(limit: int = 30, offset: int = 0, status: str | None = None) -> dict[str, Any]:
+        """List experiments with pagination and optional status filter. Use get_experiment for all run-level details."""
+        limit = max(1, min(int(limit), 100))
+        offset = max(0, int(offset))
+        with db() as conn:
+            if status:
+                rows = conn.execute("SELECT * FROM experiments WHERE status=? ORDER BY created_at DESC LIMIT ? OFFSET ?", (status, limit, offset)).fetchall()
+                total = conn.execute("SELECT COUNT(*) FROM experiments WHERE status=?", (status,)).fetchone()[0]
+            else:
+                rows = conn.execute("SELECT * FROM experiments ORDER BY created_at DESC LIMIT ? OFFSET ?", (limit, offset)).fetchall()
+                total = conn.execute("SELECT COUNT(*) FROM experiments").fetchone()[0]
+        items = [{**as_dict(r), "agent_ids": parse_json(r["agent_ids"], []), "task_ids": parse_json(r["task_ids"], []), "models": parse_json(r["models"], []), "faults": parse_json(r["faults"], {}), "budgets": parse_json(r["budgets"], {})} for r in rows]
+        return {"experiments": items, "pagination": {"limit": limit, "offset": offset, "total": total, "has_more": offset + len(items) < total}}
+
+    @MCP_SERVER.tool(annotations=_MCP_READ_ONLY)
     def rift_get_experiment(experiment_id: str) -> dict[str, Any]:
-        """Get one experiment, its configuration, and associated run summaries."""
+        """Fetch a complete experiment: setup, agents, models, tasks, fault schedule, budgets, all runs and their result payloads."""
         try:
             return get_experiment(experiment_id)
         except HTTPException as exc:
             return {"error": str(exc.detail), "status_code": exc.status_code}
 
-    @MCP_SERVER.tool()
-    def rift_list_runs(limit: int = 30) -> dict[str, Any]:
-        """List recent agent executions and their measured results."""
-        return list_runs(limit)
+    @MCP_SERVER.tool(annotations=_MCP_READ_ONLY)
+    def rift_list_runs(limit: int = 50, offset: int = 0, experiment_id: str | None = None, agent_id: str | None = None, task_id: str | None = None, status: str | None = None) -> dict[str, Any]:
+        """Browse runs with pagination and optional experiment, agent, task and status filters."""
+        limit = max(1, min(int(limit), 100))
+        offset = max(0, int(offset))
+        clauses: list[str] = []
+        params: list[Any] = []
+        for column, value in (("r.experiment_id", experiment_id), ("r.agent_id", agent_id), ("r.task_id", task_id), ("r.status", status)):
+            if value:
+                clauses.append(f"{column}=?")
+                params.append(value)
+        where = (" WHERE " + " AND ".join(clauses)) if clauses else ""
+        with db() as conn:
+            rows = conn.execute("SELECT r.*, a.name AS agent_name, e.title AS experiment_title, e.mode FROM runs r LEFT JOIN agents a ON a.id=r.agent_id LEFT JOIN experiments e ON e.id=r.experiment_id" + where + " ORDER BY COALESCE(r.started_at,e.created_at) DESC LIMIT ? OFFSET ?", tuple(params + [limit, offset])).fetchall()
+            total = conn.execute("SELECT COUNT(*) FROM runs r" + where, tuple(params)).fetchone()[0]
+        items = []
+        for row in rows:
+            item = as_dict(row)
+            item["result"] = parse_json(item.get("result"), {})
+            items.append(item)
+        return {"runs": items, "pagination": {"limit": limit, "offset": offset, "total": total, "has_more": offset + len(items) < total}}
 
-    @MCP_SERVER.tool()
+    @MCP_SERVER.tool(annotations=_MCP_READ_ONLY)
     def rift_get_run(run_id: str) -> dict[str, Any]:
-        """Get a run result, sources, metrics and ordered observable event trace."""
+        """Fetch one run's full result, metrics, output, sources, seed and ordered execution trace."""
         try:
             return run_detail(run_id)
         except HTTPException as exc:
             return {"error": str(exc.detail), "status_code": exc.status_code}
 
-    @MCP_SERVER.tool()
+    @MCP_SERVER.tool(annotations=_MCP_READ_ONLY)
+    def rift_get_run_events(run_id: str, limit: int = 200, offset: int = 0) -> dict[str, Any]:
+        """Fetch the ordered event trace for one run, with pagination. Includes event payloads and timestamps."""
+        limit = max(1, min(int(limit), 500))
+        offset = max(0, int(offset))
+        with db() as conn:
+            exists = conn.execute("SELECT id FROM runs WHERE id=?", (run_id,)).fetchone()
+            if not exists:
+                return {"error": "Run not found", "run_id": run_id}
+            rows = conn.execute("SELECT * FROM events WHERE run_id=? ORDER BY sequence LIMIT ? OFFSET ?", (run_id, limit, offset)).fetchall()
+            total = conn.execute("SELECT COUNT(*) FROM events WHERE run_id=?", (run_id,)).fetchone()[0]
+        events = [{**as_dict(row), "payload": parse_json(row["payload"], {})} for row in rows]
+        return {"run_id": run_id, "events": events, "pagination": {"limit": limit, "offset": offset, "total": total, "has_more": offset + len(events) < total}}
+
+    @MCP_SERVER.tool(annotations=_MCP_READ_ONLY)
+    def rift_list_events(limit: int = 100, offset: int = 0, experiment_id: str | None = None, run_id: str | None = None, event_type: str | None = None) -> dict[str, Any]:
+        """Search the execution event ledger by experiment, run or event type. Returns newest events first."""
+        limit = max(1, min(int(limit), 300))
+        offset = max(0, int(offset))
+        clauses: list[str] = []
+        params: list[Any] = []
+        for column, value in (("experiment_id", experiment_id), ("run_id", run_id), ("event_type", event_type)):
+            if value:
+                clauses.append(f"{column}=?")
+                params.append(value)
+        where = (" WHERE " + " AND ".join(clauses)) if clauses else ""
+        with db() as conn:
+            rows = conn.execute("SELECT * FROM events" + where + " ORDER BY timestamp DESC LIMIT ? OFFSET ?", tuple(params + [limit, offset])).fetchall()
+            total = conn.execute("SELECT COUNT(*) FROM events" + where, tuple(params)).fetchone()[0]
+        events = [{**as_dict(row), "payload": parse_json(row["payload"], {})} for row in rows]
+        return {"events": events, "pagination": {"limit": limit, "offset": offset, "total": total, "has_more": offset + len(events) < total}}
+
+    @MCP_SERVER.tool(annotations=_MCP_READ_ONLY)
+    def rift_get_experiment_evidence(experiment_id: str) -> dict[str, Any]:
+        """Fetch all evidence snapshots captured for an experiment, including source passages and evidence hashes."""
+        with db() as conn:
+            exp = conn.execute("SELECT id,title,status FROM experiments WHERE id=?", (experiment_id,)).fetchone()
+            if not exp:
+                return {"error": "Experiment not found", "experiment_id": experiment_id}
+            rows = conn.execute("SELECT * FROM evidence_snapshots WHERE experiment_id=? ORDER BY created_at,task_id", (experiment_id,)).fetchall()
+        snapshots = [{**as_dict(row), "sources": parse_json(row["sources"], [])} for row in rows]
+        return {"experiment": as_dict(exp), "snapshots": snapshots, "count": len(snapshots)}
+
+    @MCP_SERVER.tool(annotations=_MCP_READ_ONLY)
     def rift_get_leaderboard() -> dict[str, Any]:
-        """Get the leaderboard ranked from recorded benchmark outcomes."""
+        """Read current agent/model leaderboard rankings calculated from recorded runs."""
         return leaderboard()
 
-    @MCP_SERVER.tool()
+    @MCP_SERVER.tool(annotations=_MCP_READ_ONLY)
     def rift_get_evaluation_summary() -> dict[str, Any]:
-        """Get aggregate quality, evidence, citation-integrity and resilience metrics."""
+        """Read aggregate quality, evidence, citation integrity, cost, latency and resilience metrics."""
         return evaluation_summary()
 
-    @MCP_SERVER.tool()
+    @MCP_SERVER.tool(annotations=_MCP_READ_ONLY)
     def rift_get_experiment_report(experiment_id: str) -> dict[str, Any]:
-        """Get the grouped comparison report for a completed or running experiment."""
+        """Read the complete grouped comparison report for an experiment, including quality, reliability, evidence and recovery metrics."""
         try:
             return experiment_report(experiment_id)
         except HTTPException as exc:
             return {"error": str(exc.detail), "status_code": exc.status_code}
 
-    @MCP_SERVER.tool()
-    def rift_list_research_snapshots(limit: int = 10) -> dict[str, Any]:
-        """List saved research evidence snapshots and their content hashes."""
-        return research_snapshots(limit)
+    @MCP_SERVER.tool(annotations=_MCP_READ_ONLY)
+    def rift_list_research_snapshots(limit: int = 50, offset: int = 0) -> dict[str, Any]:
+        """List saved research snapshots with their answers, source passages, evidence hashes and metadata."""
+        limit = max(1, min(int(limit), 100))
+        offset = max(0, int(offset))
+        with db() as conn:
+            rows = conn.execute("SELECT * FROM research_snapshots ORDER BY created_at DESC LIMIT ? OFFSET ?", (limit, offset)).fetchall()
+            total = conn.execute("SELECT COUNT(*) FROM research_snapshots").fetchone()[0]
+        items = [{**as_dict(row), "sources": parse_json(row["sources"], [])} for row in rows]
+        return {"snapshots": items, "pagination": {"limit": limit, "offset": offset, "total": total, "has_more": offset + len(items) < total}}
 
-    @MCP_SERVER.tool()
+    @MCP_SERVER.tool(annotations=_MCP_READ_ONLY)
     def rift_get_research_snapshot(snapshot_id: str) -> dict[str, Any]:
-        """Retrieve the source passages from a saved research evidence snapshot."""
+        """Retrieve one saved research snapshot in full, including the complete answer and source passages."""
         try:
             return research_snapshot_detail(snapshot_id)
         except HTTPException as exc:
             return {"error": str(exc.detail), "status_code": exc.status_code}
+
+    @MCP_SERVER.tool(annotations=_MCP_READ_ONLY)
+    def rift_get_integration_status() -> dict[str, Any]:
+        """Read safe integration and model configuration status. Never returns API keys, passwords or secret values."""
+        return {
+            "bifrost": {"configured": bool(BIFROST_BASE_URL and BIFROST_API_KEY), "model": BIFROST_MODEL, "fault_proxy_enabled": RIFT_PROVIDER_FAULT_PROXY_ENABLED},
+            "research_provider": {"configured": bool(TAVILY_API_KEY), "provider": "Tavily"},
+            "database": {"type": "neon-postgres" if USE_POSTGRES else "sqlite", "configured": bool(DATABASE_URL) if USE_POSTGRES else True},
+            "credentials_exposed": False,
+        }
+
+    @MCP_SERVER.tool(annotations=_MCP_READ_ONLY)
+    def rift_get_database_summary() -> dict[str, Any]:
+        """Read table counts for RIFT's benchmark, run, event, evidence and research records without exposing database credentials."""
+        tables = ["agents", "experiments", "runs", "events", "evidence_snapshots", "research_snapshots"]
+        counts: dict[str, int] = {}
+        with db() as conn:
+            for table in tables:
+                counts[table] = int(conn.execute(f"SELECT COUNT(*) FROM {table}").fetchone()[0])
+        return {"database": "neon-postgres" if USE_POSTGRES else "sqlite", "counts": counts, "total_records": sum(counts.values())}
+
+    # Machine-readable catalog resources help MCP clients discover the workspace
+    # before making narrower tool calls. All exposed resources are read-only.
+    @MCP_SERVER.resource("rift://workspace/catalog")
+    def rift_workspace_catalog_resource() -> str:
+        """RIFT workspace data catalog and read-only access map."""
+        return json.dumps(rift_get_data_catalog(), ensure_ascii=False)
+
+    @MCP_SERVER.resource("rift://benchmark/tasks")
+    def rift_benchmark_tasks_resource() -> str:
+        """Complete benchmark task suite, including full prompts."""
+        return json.dumps(list_tasks(), ensure_ascii=False)
+
+    @MCP_SERVER.prompt()
+    def rift_analyze_experiment(experiment_id: str) -> str:
+        """Create a data-grounded analysis workflow for a RIFT experiment."""
+        return (
+            f"Analyze RIFT experiment {experiment_id}. First call rift_get_experiment, "
+            "then rift_get_experiment_report and rift_get_experiment_evidence. Inspect representative "
+            "run details and event traces with rift_get_run and rift_get_run_events. Distinguish "
+            "measured values from missing values; do not invent missing cost, token or latency data. "
+            "Use only data returned by RIFT and clearly label any inference."
+        )
 
     _mcp_hostname = os.getenv("RENDER_EXTERNAL_HOSTNAME", "bifrost-1-qmoa.onrender.com")
     _mcp_allowed_hosts = list(dict.fromkeys([
@@ -1548,9 +1768,13 @@ if MCP_SERVER is not None:
         "riftz.vercel.app", "riftz.vercel.app:*",
         "localhost:*", "127.0.0.1:*",
     ]))
+    _mcp_allowed_origins = list(dict.fromkeys(CORS_ORIGINS + [
+        "https://chatgpt.com", "https://chat.openai.com",
+        "https://claude.ai", "https://claude.com",
+    ]))
     _mcp_transport_security = TransportSecuritySettings(
         allowed_hosts=_mcp_allowed_hosts,
-        allowed_origins=CORS_ORIGINS,
+        allowed_origins=_mcp_allowed_origins,
     )
     _mcp_asgi_app = MCP_SERVER.streamable_http_app(
         streamable_http_path="/",

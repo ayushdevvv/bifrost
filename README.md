@@ -142,4 +142,4 @@ Before exposing a public instance, add authentication, per-workspace authorizati
 
 ## AI assistant connector
 
-RIFT exposes a public read-only remote MCP endpoint at `https://riftz.vercel.app/mcp/` for supported ChatGPT, Claude and other MCP clients. It can inspect tasks, agents, experiments, run traces, leaderboard metrics and saved research evidence. It cannot launch or modify runs. See [`docs/MCP_CONNECTORS.md`](docs/MCP_CONNECTORS.md) for setup and security limitations.
+RIFT exposes a full read-only remote MCP endpoint at `https://riftz.vercel.app/mcp/` for supported ChatGPT, Claude and other MCP clients. Its 21 read-only tools plus resources cover task prompts, agents, experiment configurations, every run, ordered event traces, research/evidence sources, evaluation summaries, comparison reports and leaderboards. It cannot launch/cancel runs, modify agents/settings or trigger provider spend. See [`docs/MCP_CONNECTORS.md`](docs/MCP_CONNECTORS.md) for setup and security limitations.

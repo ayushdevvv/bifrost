@@ -1,69 +1,104 @@
-# RIFT Arena remote MCP connector
+# RIFT Arena full read-only MCP connector
 
-RIFT exposes a read-only Model Context Protocol (MCP) server for ChatGPT, Claude and other clients that support remote Streamable HTTP MCP servers.
+RIFT exposes a remote Model Context Protocol (MCP) server over Streamable HTTP. It is designed to work with ChatGPT, Claude and other MCP-compatible clients.
 
 ## Endpoint
-
-Use the branded Vercel endpoint:
 
 ```text
 https://riftz.vercel.app/mcp/
 ```
 
-Vercel proxies `/mcp` and `/mcp/` to the RIFT FastAPI service at `https://bifrost-1-qmoa.onrender.com/mcp/`. The Bifrost model gateway at `https://bifrost-deploy.onrender.com` is separate and is not the MCP endpoint.
+The Vercel frontend proxies `/mcp` and `/mcp/` to the RIFT FastAPI backend at `https://bifrost-1-qmoa.onrender.com/mcp/`. The Bifrost model gateway at `https://bifrost-deploy.onrender.com` is a separate service and is not the MCP endpoint.
 
-## Tools
+## Full read-only scope
 
-The server exposes read-only tools:
+The connector provides read-only access to the persisted RIFT workspace data:
 
+- Workspace overview and data catalog
+- Benchmark task suite, full task prompts and scoring expectations
+- Registered agents and their public configuration (adapter endpoint URLs are not exposed)
+- Experiment configurations, selected agents/models/tasks, repetitions, fault settings, budgets and status
+- Run records, outputs, metrics, source references, errors and seeds
+- Ordered execution event traces and event payloads
+- Experiment evidence snapshots and their source passages/hashes
+- Saved research queries, answers and source passages
+- Evaluation summaries, comparisons, reports and leaderboard
+- Safe integration status and database record counts (no API keys or passwords)
+
+The MCP server includes 21 read-only tools:
+
+- `rift_search_workspace`
+- `rift_get_data_catalog`
 - `rift_get_overview`
 - `rift_list_tasks`
+- `rift_get_task`
 - `rift_list_agents`
+- `rift_get_agent`
 - `rift_list_experiments`
 - `rift_get_experiment`
 - `rift_list_runs`
 - `rift_get_run`
+- `rift_get_run_events`
+- `rift_list_events`
+- `rift_get_experiment_evidence`
 - `rift_get_leaderboard`
 - `rift_get_evaluation_summary`
 - `rift_get_experiment_report`
 - `rift_list_research_snapshots`
 - `rift_get_research_snapshot`
+- `rift_get_integration_status`
+- `rift_get_database_summary`
 
-No tool creates experiments, cancels runs, registers agents, changes settings, or calls model providers. This connector does not trigger Bifrost or Tavily spend.
+The server also exposes read-only resources `rift://workspace/catalog` and `rift://benchmark/tasks`, plus the `rift_analyze_experiment` analysis prompt. All tools carry MCP `readOnlyHint` annotations. No write tools are registered: clients cannot create/cancel experiments, register/delete agents, edit settings, change credentials, or trigger Bifrost/Tavily usage.
 
 ## Render deployment
 
-The backend's `requirements.txt` pins the official MCP Python SDK (`mcp==2.3.0`). The API mounts the Streamable HTTP app at `/mcp/`, starts the MCP session manager with the FastAPI lifespan, and permits the service host plus the Vercel proxy host in MCP transport security.
+The backend's `requirements.txt` pins the official MCP Python SDK (`mcp==2.3.0`). The FastAPI application mounts the Streamable HTTP app at `/mcp/` and starts its session manager in the application lifespan.
 
-Deploy the backend from the `backend` directory using the existing native Python Render commands:
+Deploy from the `backend` directory using the existing native Python Render commands:
 
 ```bash
 pip install -r requirements.txt
 uvicorn main:app --host 0.0.0.0 --port $PORT
 ```
 
-No Dockerfile or extra Render service is needed for MCP. The existing RIFT backend hosts both the REST API and MCP endpoint.
+No Dockerfile or extra Render service is required for MCP. The existing RIFT backend hosts both the REST API and MCP endpoint.
 
 ## Vercel routing
 
-`frontend/vercel.json` rewrites `/mcp` and `/mcp/` to the RIFT backend before the single-page-app fallback. Keep the Vercel frontend's existing `VITE_API_BASE_URL` unchanged.
+`frontend/vercel.json` rewrites `/mcp` and `/mcp/` to the RIFT FastAPI backend before the SPA fallback. Keep the frontend's existing `VITE_API_BASE_URL` unchanged; MCP uses its own Vercel rewrite.
 
 ## Connect Claude
 
-1. Open **Customize → Connectors** in Claude.
-2. Choose **Add custom connector**.
-3. Name it `RIFT Arena` and enter `https://riftz.vercel.app/mcp/`.
-4. Choose **No sign in** because the current endpoint has no authentication.
-5. Add the connector and enable it in a conversation.
+Remote MCP custom connectors are available on Claude Free, Pro, Max, Ultra, Team and Enterprise plans. Free accounts are limited to one custom connector.
 
-Official guide: https://support.claude.com/en/articles/11175166-get-started-with-custom-connectors-using-remote-mcp
+1. Open Claude → Customize → Connectors.
+2. Choose Add custom connector.
+3. Name it `RIFT Arena`.
+4. Enter `https://riftz.vercel.app/mcp/`.
+5. Select `No sign in` for this current public endpoint.
+6. Add the connector and enable it in a conversation.
+
+Claude's official setup guide: https://support.claude.com/en/articles/11175166-get-started-with-custom-connectors-using-remote-mcp
 
 ## Connect ChatGPT
 
-ChatGPT custom MCP app availability depends on account and workspace plan. For supported accounts, open the web app's **Plugins / Apps** area, add a custom MCP server, and enter `https://riftz.vercel.app/mcp/`. On Pro, current OpenAI documentation describes read/fetch access; full MCP is available for Business and Enterprise/Edu workspaces.
+Custom MCP availability in ChatGPT depends on plan and workspace permissions. OpenAI's current help article lists custom MCP connections for Business and Enterprise/Edu workspaces; its FAQ also mentions read/fetch custom MCP access for Pro. Free access is not currently documented as supported.
 
-Official guide: https://help.openai.com/en/articles/12584461-connecting-custom-mcp-servers-in-chatgpt
+For an eligible account:
 
-## Security and privacy
+1. Open ChatGPT on the web and go to Plugins.
+2. Select `+` → `Add custom MCP server`.
+3. Name it `RIFT Arena`.
+4. Enter `https://riftz.vercel.app/mcp/`.
+5. Configure authentication as `No authentication` for this current public endpoint.
+6. Review the discovered tools and create the plugin.
+7. Start a new chat and select `RIFT Arena` from Plugins / `@` app selection.
 
-The endpoint is public and currently unauthenticated. Read-only means clients cannot change RIFT data, but anyone who discovers the URL can read benchmark tasks, agent names, experiments, run traces, outputs and saved research snapshots exposed by these tools. Do not put secrets, private customer data or sensitive prompts into RIFT records while this public connector is enabled. Add authentication and per-user authorization before using it for private workspaces.
+OpenAI's connection guide: https://help.openai.com/en/articles/12584461-connecting-custom-mcp-servers-in-chatgpt
+
+## Public access and security
+
+This endpoint currently has no sign-in. Read-only means the assistant cannot mutate RIFT; it does **not** mean the endpoint is private. Anyone who knows the URL can read the records exposed by these tools. Do not store secrets, private customer data, access tokens or sensitive prompts in RIFT records while this public endpoint is enabled.
+
+For private, per-user access, add an OAuth 2.1 authorization layer and authorize the connector after sign-in. A fixed URL or `readOnlyHint` annotation is not authentication. MCP annotations are client hints; the server's registered tool set is what enforces the read-only boundary.
