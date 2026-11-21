@@ -1,154 +1,122 @@
 import React, { useMemo, useRef } from 'react'
 import { Canvas, useFrame } from '@react-three/fiber'
-import { ContactShadows, Float, OrbitControls, Sparkles, Stars } from '@react-three/drei'
+import { Html, Line, OrbitControls, Sparkles } from '@react-three/drei'
 import * as THREE from 'three'
 
-function GlowRing({ position = [0, 0, 0], radius = 1, color = '#54caff', opacity = 0.6 }) {
-  return <mesh position={position} rotation={[-Math.PI / 2, 0, 0]}>
-    <torusGeometry args={[radius, 0.018, 12, 100]} />
-    <meshBasicMaterial color={color} transparent opacity={opacity} />
-  </mesh>
+export const ARENA_NODES = [
+  { id: 'llm', label: 'LLM Provider', pos: [-3.3, 0, -2.7] },
+  { id: 'bifrost', label: 'Bifrost Gateway', pos: [3.3, 0, -2.7] },
+  { id: 'browser', label: 'Browser / Tavily', pos: [-4.6, 0, 0.7] },
+  { id: 'api', label: 'API Gateway', pos: [4.6, 0, 0.7] },
+  { id: 'db', label: 'Database', pos: [-2.1, 0, 3.5] },
+  { id: 'tools', label: 'External Tools', pos: [2.1, 0, 3.5] },
+]
+export const nodeForEvent = (type = '') => {
+  if (/fallback/.test(type)) return 'bifrost'
+  if (/provider|model/.test(type)) return 'llm'
+  if (/research|search|poison|evidence/.test(type)) return 'browser'
+  if (/latency/.test(type)) return 'api'
+  if (/memory/.test(type)) return 'db'
+  if (/tool/.test(type)) return 'tools'
+  return 'bifrost'
+}
+export const scenarioForEvent = (type = '') => /provider.*fail|provider\.request\.failed/.test(type) ? 'provider' : /poison/.test(type) ? 'poison' : /latency/.test(type) ? 'latency' : /tool.*(fail|unavailable)/.test(type) ? 'tool' : /fallback\.completed/.test(type) ? 'recovery' : 'normal'
+const AFFECTED = { provider: ['llm', 'bad'], poison: ['browser', 'poison'], latency: ['api', 'warn'], tool: ['tools', 'bad'], recovery: ['bifrost', 'ok'] }
+export const nodeHealth = (id, scenario) => (AFFECTED[scenario]?.[0] === id ? AFFECTED[scenario][1] : 'ok')
+export const HEALTH_COLOR = { ok: '#22d3ee', warn: '#fbbf24', bad: '#fb7185', poison: '#c084fc' }
+export const HEALTH_LABEL = { ok: 'HEALTHY', warn: 'SLOW', bad: 'DOWN', poison: 'POISONED' }
+const CENTER_Y = 0.55
+
+function Ring({ r = 1, y = 0, color = '#22d3ee', opacity = 0.7, tube = 0.015, spin = 0 }) {
+  const ref = useRef()
+  useFrame((_, d) => { if (ref.current && spin) ref.current.rotation.z += d * spin })
+  return <mesh ref={ref} position={[0, y, 0]} rotation={[-Math.PI / 2, 0, 0]}><torusGeometry args={[r, tube, 10, 96]} /><meshBasicMaterial color={color} transparent opacity={opacity} /></mesh>
 }
 
-function Tower({ position, height = 1.4, color = '#4c8fff', accent = '#8b5cf6', active = false }) {
-  const glow = useRef()
-  useFrame(({ clock }) => {
-    if (glow.current) glow.current.material.opacity = (active ? 0.8 : 0.28) + Math.sin(clock.elapsedTime * 2.2) * 0.09
-  })
-  return <group position={position}>
-    <mesh position={[0, height / 2, 0]} castShadow>
-      <boxGeometry args={[0.72, height, 0.72]} />
-      <meshStandardMaterial color="#101a30" metalness={0.75} roughness={0.28} emissive={color} emissiveIntensity={active ? 0.48 : 0.12} />
-    </mesh>
-    <mesh position={[0, height + 0.07, 0]}>
-      <boxGeometry args={[0.78, 0.12, 0.78]} />
-      <meshStandardMaterial color={accent} emissive={accent} emissiveIntensity={0.9} metalness={0.4} />
-    </mesh>
-    <mesh ref={glow} position={[0, height + 0.28, 0]}>
-      <sphereGeometry args={[0.12, 18, 18]} />
-      <meshBasicMaterial color={color} transparent opacity={0.3} />
-    </mesh>
-    <GlowRing position={[0, 0.035, 0]} radius={0.68} color={color} />
-  </group>
-}
-
-function AgentBot({ start = [0, 0.35, 0], target = [0, 0.35, 0], color = '#64d8ff', scale = 1 }) {
-  const root = useRef()
-  useFrame((state, delta) => {
-    if (!root.current) return
-    const dest = new THREE.Vector3(...target)
-    root.current.position.lerp(dest, Math.min(1, delta * 1.7))
-    root.current.position.y = dest.y + Math.sin(state.clock.elapsedTime * 2.1) * 0.08
-    root.current.rotation.y = Math.sin(state.clock.elapsedTime * 0.55) * 0.17
-  })
-  return <group ref={root} position={start} scale={scale}>
-    <mesh position={[0, 0.28, 0]} castShadow>
-      <capsuleGeometry args={[0.19, 0.3, 5, 12]} />
-      <meshStandardMaterial color="#d9f2ff" metalness={0.72} roughness={0.2} />
-    </mesh>
-    <mesh position={[0, 0.69, 0]} castShadow>
-      <sphereGeometry args={[0.29, 24, 24]} />
-      <meshStandardMaterial color="#e7f6ff" metalness={0.78} roughness={0.18} />
-    </mesh>
-    <mesh position={[0, 0.7, 0.25]}>
-      <sphereGeometry args={[0.19, 20, 20]} />
-      <meshBasicMaterial color="#071526" />
-    </mesh>
-    {[-0.08, 0.08].map((x) => <mesh key={x} position={[x, 0.72, 0.405]}>
-      <sphereGeometry args={[0.035, 12, 12]} />
-      <meshBasicMaterial color={color} />
-    </mesh>)}
-    <mesh position={[-0.32, 0.27, 0]} rotation={[0, 0, -0.28]}>
-      <capsuleGeometry args={[0.07, 0.22, 4, 8]} />
-      <meshStandardMaterial color="#c8eaff" metalness={0.75} />
-    </mesh>
-    <mesh position={[0.32, 0.27, 0]} rotation={[0, 0, 0.28]}>
-      <capsuleGeometry args={[0.07, 0.22, 4, 8]} />
-      <meshStandardMaterial color="#c8eaff" metalness={0.75} />
-    </mesh>
-    <GlowRing position={[0, -0.12, 0]} radius={0.5} color={color} opacity={0.7} />
-  </group>
-}
-
-function NetworkPath({ points, color = '#4baeff', opacity = 0.45 }) {
-  const geometry = useMemo(() => {
-    const curve = new THREE.CatmullRomCurve3(points.map((p) => new THREE.Vector3(...p)))
-    return new THREE.TubeGeometry(curve, 48, 0.012, 6, false)
-  }, [points])
-  return <mesh geometry={geometry}>
-    <meshBasicMaterial color={color} transparent opacity={opacity} />
-  </mesh>
-}
-
-function Scene({ events = [], fault = 'none' }) {
-  const latest = events[events.length - 1]
-  const eventType = latest?.event_type || ''
-  const targets = useMemo(() => {
-    if (eventType.includes('provider')) return [[-2.4, 0.4, -1.65], [0.2, 0.4, 1.8]]
-    if (eventType.includes('poison')) return [[2.2, 0.4, 1.85], [-0.4, 0.4, 1.8]]
-    if (eventType.includes('latency')) return [[-2.1, 0.4, 1.6], [2.2, 0.4, -1.8]]
-    if (eventType.includes('completed')) return [[0.2, 0.4, 0.2], [-0.2, 0.4, -0.25]]
-    if (eventType.includes('tool')) return [[2.1, 0.4, 1.6], [-2.1, 0.4, 1.7]]
-    return [[-0.3, 0.4, -0.6], [0.5, 0.4, 0.6]]
-  }, [eventType, events.length])
-  const providerDown = fault === 'provider' || eventType === 'provider.request.failed'
-  const poisonActive = fault === 'poison' || eventType === 'evidence.poison.injected'
-  const latencyActive = fault === 'latency' || eventType === 'latency.delay.applied'
-  return <>
-    <color attach="background" args={['#060b18']} />
-    <fog attach="fog" args={['#060b18', 10, 25]} />
-    <ambientLight intensity={0.75} />
-    <directionalLight position={[4, 8, 5]} intensity={2} color="#c3e7ff" castShadow />
-    <pointLight position={[0, 3, 0]} intensity={2.4} color="#2b8dff" distance={11} />
-    <pointLight position={[-4, 2, -2]} intensity={1.7} color="#8d4dff" distance={8} />
-    <pointLight position={[4, 2, 2]} intensity={1.5} color="#12e2bd" distance={8} />
-    <Stars radius={45} depth={22} count={850} factor={2.2} saturation={0.25} fade speed={0.5} />
-    <Sparkles count={70} scale={[12, 5, 12]} size={1.6} speed={0.25} color="#63baff" />
-    <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.12, 0]} receiveShadow>
-      <planeGeometry args={[30, 30]} />
-      <meshStandardMaterial color="#081226" metalness={0.35} roughness={0.82} />
-    </mesh>
-    <gridHelper args={[24, 48, '#163c70', '#0e2342']} position={[0, -0.105, 0]} />
-    <group position={[0, 0, 0]}>
-      <mesh position={[0, 0.1, 0]}>
-        <cylinderGeometry args={[2.2, 2.5, 0.38, 64]} />
-        <meshStandardMaterial color="#101b33" metalness={0.82} roughness={0.25} emissive="#102c57" emissiveIntensity={0.45} />
-      </mesh>
-      <mesh position={[0, 0.33, 0]}>
-        <cylinderGeometry args={[1.5, 1.8, 0.18, 64]} />
-        <meshStandardMaterial color="#162a4b" metalness={0.86} roughness={0.2} emissive="#125caa" emissiveIntensity={0.55} />
-      </mesh>
-      <GlowRing position={[0, 0.34, 0]} radius={2.28} color="#4bbcff" opacity={0.9} />
-      <GlowRing position={[0, 0.45, 0]} radius={1.62} color="#8b5cf6" opacity={0.78} />
-      <Float speed={1.1} rotationIntensity={0.04} floatIntensity={0.16}>
-        <mesh position={[0, 1.7, 0]}>
-          <octahedronGeometry args={[0.72, 1]} />
-          <meshPhysicalMaterial color="#42bfff" roughness={0.1} metalness={0.5} transmission={0.55} thickness={1.4} emissive="#155b9f" emissiveIntensity={0.55} />
-        </mesh>
-      </Float>
-      <mesh position={[0, 0.9, 0]}>
-        <cylinderGeometry args={[0.34, 0.44, 0.7, 32]} />
-        <meshStandardMaterial color="#d9f4ff" metalness={0.85} roughness={0.2} emissive="#35a9ff" emissiveIntensity={0.25} />
-      </mesh>
+function Core({ scenario }) {
+  const body = useRef()
+  const bad = scenario === 'provider' || scenario === 'tool'
+  useFrame(({ clock }) => { if (body.current) { body.current.position.y = 1.05 + Math.sin(clock.elapsedTime * 1.6) * 0.06; body.current.rotation.y = Math.sin(clock.elapsedTime * 0.5) * 0.25 } })
+  const c = bad ? '#fb7185' : '#22d3ee'
+  return <group>
+    <mesh position={[0, 0.12, 0]}><cylinderGeometry args={[1.5, 1.75, 0.24, 64]} /><meshStandardMaterial color="#071a28" metalness={0.8} roughness={0.3} emissive="#06475a" emissiveIntensity={0.6} /></mesh>
+    <Ring r={1.55} y={0.26} color={c} opacity={0.95} tube={0.025} spin={0.6} />
+    <Ring r={1.05} y={0.28} color="#5eead4" opacity={0.8} spin={-0.9} />
+    <Ring r={0.55} y={0.3} color={c} opacity={0.9} tube={0.03} />
+    <mesh position={[0, 1.55, 0]}><cylinderGeometry args={[1.0, 1.0, 2.5, 48, 1, true]} /><meshPhysicalMaterial color="#38e1ff" transparent opacity={0.1} roughness={0.05} side={THREE.DoubleSide} emissive="#0891b2" emissiveIntensity={0.35} /></mesh>
+    <group ref={body} position={[0, 1.05, 0]}>
+      <mesh position={[0, 0.2, 0]}><capsuleGeometry args={[0.3, 0.6, 6, 16]} /><meshStandardMaterial color="#cdeffb" metalness={0.75} roughness={0.22} emissive="#0e7490" emissiveIntensity={0.3} /></mesh>
+      <mesh position={[0, 0.95, 0]}><sphereGeometry args={[0.34, 24, 24]} /><meshStandardMaterial color="#e6f9ff" metalness={0.8} roughness={0.2} /></mesh>
+      <mesh position={[0, 0.97, 0.26]}><boxGeometry args={[0.46, 0.14, 0.12]} /><meshBasicMaterial color={c} /></mesh>
+      <mesh position={[0, 0.25, 0.3]}><octahedronGeometry args={[0.1]} /><meshBasicMaterial color={c} /></mesh>
     </group>
-    <Tower position={[-3.3, 0, -2.1]} height={1.7} color={providerDown ? '#ff526f' : '#5eaaff'} accent={providerDown ? '#a72f51' : '#3d79ff'} active={providerDown} />
-    <Tower position={[3.3, 0, -2.1]} height={1.95} color="#1ed8c1" accent="#168c91" active={false} />
-    <Tower position={[3.25, 0, 2.1]} height={1.45} color={poisonActive ? '#bd67ff' : '#8c70ff'} accent={poisonActive ? '#a341d9' : '#684bd9'} active={poisonActive} />
-    <Tower position={[-3.3, 0, 2.15]} height={1.3} color={latencyActive ? '#ffcb68' : '#38c7ff'} accent={latencyActive ? '#ba7e25' : '#247cb9'} active={latencyActive} />
-    <NetworkPath points={[[-3.3, 0.16, -2.1], [-1.3, 0.4, -1], [0, 0.45, 0]]} color={providerDown ? '#ff526f' : '#4b9cff'} />
-    <NetworkPath points={[[0, 0.44, 0], [1.7, 0.35, 0.8], [3.25, 0.16, 2.1]]} color={poisonActive ? '#be6aff' : '#21d6c0'} />
-    <NetworkPath points={[[-3.3, 0.16, 2.15], [-1.5, 0.38, 1.2], [0, 0.45, 0]]} color={latencyActive ? '#ffc75f' : '#399de9'} opacity={latencyActive ? 0.9 : 0.45} />
-    <AgentBot start={[-0.35, 0.5, -0.45]} target={targets[0]} color="#64d8ff" scale={0.82} />
-    <AgentBot start={[0.45, 0.5, 0.45]} target={targets[1]} color="#c58cff" scale={0.72} />
-    <ContactShadows position={[0, -0.1, 0]} opacity={0.4} scale={12} blur={2.8} far={4} />
-    <OrbitControls enablePan={false} minDistance={6} maxDistance={15} maxPolarAngle={1.34} minPolarAngle={0.55} autoRotate autoRotateSpeed={0.22} />
+    <Html position={[0, 0.02, 1.9]} center distanceFactor={9} zIndexRange={[5, 0]}><div className="a3d-tag core">ATLAS-01<small>{bad ? 'RECOVERING' : 'EXECUTING TASK'}</small></div></Html>
+  </group>
+}
+
+function Node({ node, health, active, selected, onSelect }) {
+  const glow = useRef()
+  const color = HEALTH_COLOR[health]
+  useFrame(({ clock }) => { if (glow.current) glow.current.material.opacity = (active ? 0.9 : 0.4) + Math.sin(clock.elapsedTime * 3 + node.pos[0]) * 0.12 })
+  return <group position={node.pos} onClick={(e) => { e.stopPropagation(); onSelect(node.id) }} onPointerOver={() => { document.body.style.cursor = 'pointer' }} onPointerOut={() => { document.body.style.cursor = '' }}>
+    <mesh position={[0, 0.1, 0]}><cylinderGeometry args={[0.62, 0.7, 0.2, 40]} /><meshStandardMaterial color="#071a28" metalness={0.8} roughness={0.3} emissive={color} emissiveIntensity={active ? 0.5 : 0.15} /></mesh>
+    <mesh ref={glow} position={[0, 0.22, 0]} rotation={[-Math.PI / 2, 0, 0]}><torusGeometry args={[0.6, 0.025, 8, 48]} /><meshBasicMaterial color={color} transparent opacity={0.6} /></mesh>
+    <mesh position={[0, 0.72, 0]} rotation={[0, Math.PI / 4, 0]}><boxGeometry args={[0.5, 0.5, 0.5]} /><meshStandardMaterial color="#0b2a3c" metalness={0.7} roughness={0.25} emissive={color} emissiveIntensity={selected ? 0.9 : 0.4} /></mesh>
+    {selected && <Ring r={0.85} y={0.05} color="#ffffff" opacity={0.9} tube={0.02} spin={1.2} />}
+    <Html position={[0, 1.35, 0]} center distanceFactor={9} zIndexRange={[5, 0]}><div className={`a3d-tag ${health}`}>{node.label}<small>{HEALTH_LABEL[health]}</small></div></Html>
+  </group>
+}
+
+function Link({ to, color, active }) {
+  const ref = useRef()
+  const pts = useMemo(() => [[0, CENTER_Y, 0], [to[0] * 0.5, CENTER_Y + 0.6, to[2] * 0.5], [to[0], 0.7, to[2]]], [to])
+  useFrame((_, d) => { if (ref.current?.material) ref.current.material.dashOffset -= d * (active ? 1.6 : 0.5) })
+  return <Line ref={ref} points={pts} color={color} lineWidth={active ? 2.4 : 1.2} dashed dashSize={0.22} gapSize={0.16} transparent opacity={active ? 0.95 : 0.4} />
+}
+
+function Packet({ to, color, speed = 0.55, offset = 0, reverse = false }) {
+  const ref = useRef()
+  const curve = useMemo(() => new THREE.QuadraticBezierCurve3(new THREE.Vector3(0, CENTER_Y, 0), new THREE.Vector3(to[0] * 0.5, CENTER_Y + 0.6, to[2] * 0.5), new THREE.Vector3(to[0], 0.7, to[2])), [to])
+  useFrame(({ clock }) => {
+    if (!ref.current) return
+    let t = (clock.elapsedTime * speed + offset) % 1
+    if (reverse) t = 1 - t
+    ref.current.position.copy(curve.getPoint(t))
+    ref.current.scale.setScalar(0.8 + Math.sin(t * Math.PI) * 0.7)
+  })
+  return <mesh ref={ref}><sphereGeometry args={[0.09, 12, 12]} /><meshBasicMaterial color={color} /></mesh>
+}
+
+function Scene({ scenario, activeId, selectedId, onSelect }) {
+  return <>
+    <color attach="background" args={['#030b14']} />
+    <fog attach="fog" args={['#030b14', 12, 28]} />
+    <ambientLight intensity={0.55} />
+    <pointLight position={[0, 4, 0]} intensity={3} color="#22d3ee" distance={14} />
+    <pointLight position={[-5, 3, 3]} intensity={1.4} color="#2dd4bf" distance={10} />
+    <pointLight position={[5, 3, -3]} intensity={1.2} color="#38bdf8" distance={10} />
+    <Sparkles count={90} scale={[14, 5, 12]} size={1.8} speed={0.3} color="#67e8f9" />
+    <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.02, 0]}><planeGeometry args={[40, 40]} /><meshStandardMaterial color="#04101a" metalness={0.5} roughness={0.7} /></mesh>
+    <gridHelper args={[30, 60, '#0e7490', '#0a2a3a']} position={[0, 0, 0]} />
+    <Core scenario={scenario} />
+    {ARENA_NODES.map((n) => {
+      const h = nodeHealth(n.id, scenario); const active = n.id === activeId
+      const col = HEALTH_COLOR[h]
+      return <group key={n.id}>
+        <Link to={n.pos} color={col} active={active} />
+        <Packet to={n.pos} color={col} offset={(n.pos[0] + 5) / 11} speed={active ? 0.9 : 0.35} reverse={n.id === 'llm' || n.id === 'db'} />
+        {active && <Packet to={n.pos} color="#ffffff" offset={0.5} speed={0.9} />}
+        <Node node={n} health={h} active={active} selected={n.id === selectedId} onSelect={onSelect} />
+      </group>
+    })}
+    <OrbitControls enablePan={false} minDistance={7} maxDistance={16} maxPolarAngle={1.35} minPolarAngle={0.35} autoRotate autoRotateSpeed={0.25} target={[0, 0.8, 0.3]} />
   </>
 }
 
-export default function Arena3D({ events = [], fault = 'none', paused = false, className = '' }) {
+export default function Arena3D({ scenario = 'normal', activeId = 'bifrost', selectedId = null, onSelect = () => {}, paused = false, className = '' }) {
   return <div className={`arena-canvas ${className}`}>
-    <Canvas shadows frameloop={paused ? 'never' : 'always'} dpr={[1, 1.6]} camera={{ position: [8.4, 7.4, 9.2], fov: 38 }} fallback={<div className="canvas-fallback">WebGL is unavailable in this browser.</div>}>
-      <Scene events={events} fault={fault} />
+    <Canvas frameloop={paused ? 'never' : 'always'} dpr={[1, 1.6]} camera={{ position: [0, 5.6, 10.5], fov: 40 }} onPointerMissed={() => onSelect(null)} fallback={<div className="canvas-fallback">WebGL is unavailable in this browser.</div>}>
+      <Scene scenario={scenario} activeId={activeId} selectedId={selectedId} onSelect={onSelect} />
     </Canvas>
   </div>
 }

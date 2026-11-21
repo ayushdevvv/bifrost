@@ -9,6 +9,8 @@ import {
   Fingerprint, Bug, FilePlus2, ScanSearch, History, Route, FileUp, CircleDollarSign, CheckCircle2, AlertCircle, Scale, GaugeCircle, Clock, Upload, Layers,
 } from 'lucide-react'
 import Arena3D from './components/Arena3D.jsx'
+import RunDock from './components/RunDock.jsx'
+import ArenaLab from './components/ArenaLab.jsx'
 
 const API = (import.meta.env.VITE_API_BASE_URL || '/api').replace(/\/$/, '')
 const API_URL = new URL(API, window.location.origin)
@@ -20,36 +22,36 @@ const navGroups = [
     ['compare', 'Compare experiments', GitCompareArrows], ['runs', 'Run inspector', Activity],
   ] },
   { label: 'Reliability', items: [
-    ['chaos', 'Fault testing', ShieldEllipsis], ['counterfactuals', 'Failure analysis', ScanSearch],
+    ['chaos', 'Chaos lab', ShieldEllipsis], ['counterfactuals', 'Failure analysis', ScanSearch],
     ['regression', 'Regression suite', History],
   ] },
   { label: 'Results', items: [
     ['evaluation', 'Evaluation reports', FileBarChart], ['leaderboard', 'Leaderboard', Trophy],
   ] },
   { label: 'Integrations', items: [
-    ['arena', 'Execution replay', Network], ['bifrost', 'Bifrost gateway', Gauge],
+    ['arena', '3D Arena', Network], ['bifrost', 'Bifrost gateway', Gauge],
     ['traffic', 'Request datasets', Database], ['research', 'Research snapshots', Globe2],
     ['mcp', 'Tool dependency monitor', Fingerprint], ['settings', 'Integrations & settings', Settings2],
   ] },
 ]
 const pageTitles = {
-  overview: ['Workspace', 'A clear view of agent benchmark activity and reliability.'],
-  benchmark: ['Agent Benchmark Lab', 'Compare complete agent configurations at task level across matched trials and controlled failures.'],
-  agents: ['Agent registry', 'Connect agents built with any framework through one stable HTTP contract.'],
-  research: ['Research snapshots', 'Inspect and pin evidence used by research-category tasks.'],
-  runs: ['Run Inspector', 'Every observable action, result and failure.'],
-  mcp: ['Tool dependency monitor', 'Optional manifest history and drift detection for connected tool servers.'],
-  counterfactuals: ['Failure analysis', 'Remove one injected condition at a time and compare the resulting agent runs.'],
-  regression: ['Regression suite', 'Preserve important failures and replay them against new agent versions.'],
-  chaos: ['Fault testing', 'Inject provider, tool, latency and instruction failures into matched trials.'],
-  arena: ['Execution replay', 'Replay observable agent events in sequence and inspect each run.'],
-  evaluation: ['Evaluation reports', 'Measure task success, repeatability, efficiency and resilience.'],
-  compare: ['Compare', 'Understand what makes one configuration perform better.'],
-  leaderboard: ['Leaderboard', 'Rank configurations by verified performance.'],
-  settings: ['Integrations & settings', 'Configure Bifrost, live research and persistent storage.'],
-  bifrost: ['Bifrost gateway', 'Optional gateway integration for model requests and route-level comparisons.'],
-  'route-lab': ['Route lab', 'Compare Bifrost model routes on a shared request workload.'],
-  traffic: ['Traffic replay', 'Build a reusable workload from representative production requests.'],
+  overview: ['Workspace', 'Agent benchmark activity at a glance.'],
+  benchmark: ['Agent Benchmark Lab', 'Run matched trials on any agent and compare them.'],
+  agents: ['Agent registry', 'Connect any agent through one HTTP contract.'],
+  research: ['Research snapshots', 'Evidence pinned for research tasks.'],
+  runs: ['Run Inspector', 'Every step, tool call and failure.'],
+  mcp: ['Tool dependency monitor', 'Track tool-server changes.'],
+  counterfactuals: ['Failure analysis', 'Remove one fault at a time and compare.'],
+  regression: ['Regression suite', 'Replay saved failures on new agent versions.'],
+  chaos: ['Chaos lab', 'Inject outages, bad tools and hostile instructions.'],
+  arena: ['3D Arena', 'Watch agent events play out live.'],
+  evaluation: ['Evaluation reports', 'Success, repeatability, cost and resilience.'],
+  compare: ['Compare', 'See why one configuration wins.'],
+  leaderboard: ['Leaderboard', 'Agents ranked by measured results.'],
+  settings: ['Integrations & settings', 'Bifrost, Tavily and storage.'],
+  bifrost: ['Bifrost gateway', 'Optional gateway integration.'],
+  'route-lab': ['Route lab', 'Compare model routes on one workload.'],
+  traffic: ['Traffic replay', 'Reusable request workloads.'],
 }
 const defaultConfig = {
   title: 'Coding-10 agent benchmark', mode: 'demo', evidenceMode: 'snapshot', suiteId: 'coding-10',
@@ -160,7 +162,7 @@ function BenchmarkPage({ agents, tasks, onLaunch, busy }) {
       <aside className="benchmark-side">
         <Panel className="side-panel"><PanelHeading title="Trial protocol" detail="Control repeatability and injected conditions."/><div className="field-stack"><Field label={`Repeated trials · ${config.repetitions}×`}><input type="range" min="1" max="5" value={config.repetitions} onChange={(e) => update('repetitions', Number(e.target.value))} /></Field><div className="repetition-scale"><span>1</span><span>2</span><span>3</span><span>4</span><span>5</span></div><Field label="Master seed"><input type="number" value={config.masterSeed} onChange={(e) => update('masterSeed', Number(e.target.value))} /></Field><Field label={`Fault severity · ${config.severity}%`}><input type="range" min="0" max="100" step="5" value={config.severity} onChange={(e) => update('severity', Number(e.target.value))} /></Field></div><div className="divider"/><div className="field-stack"><div className="mini-heading">Fault profile</div>{[
           ['provider','Provider outage','Simulate an unavailable primary model route.'],['tool_unavailable','Broken tool','Make a required tool unavailable to the agent.'],['misleading_instruction','Misleading instruction','Add hostile instructions as untrusted task context.'],['poison','Evidence poisoning','Add adversarial evidence to research tasks.'],['latency','Network latency','Delay the task context or research tool response.'],
-        ].map(([key, title, detail]) => <div className="switch-row" key={key}><div><b>{title}</b><small>{detail}</small></div><Switch checked={Boolean(config.faults[key])} onChange={(value) => toggleFault(key, value)} /></div>)}</div><div className="divider"/><div className="run-estimate"><span>Planned agent executions</span><b>{runCount}</b><small>{config.agentIds.length} agents · {config.taskIds.length} tasks · {config.repetitions} trials</small></div>{formError && <div className="form-error">{formError}</div>}<Button className="full-button" icon={Play} disabled={busy || suiteLoading} onClick={launch}>{busy ? 'Launching benchmark…' : 'Run benchmark'}</Button><p className="side-footnote">Fixture mode is fully offline. Live mode uses Bifrost for built-in model calls and Tavily only for research tasks. External adapters receive the fault protocol in their request envelope.</p></Panel>
+        ].map(([key, title, detail]) => <div className="switch-row" key={key}><div><b>{title}</b><small>{detail}</small></div><Switch checked={Boolean(config.faults[key])} onChange={(value) => toggleFault(key, value)} /></div>)}</div><div className="divider"/><div className="run-estimate"><span>Planned agent executions</span><b>{runCount}</b><small>{config.agentIds.length} agents · {config.taskIds.length} tasks · {config.repetitions} trials</small></div>{formError && <div className="form-error">{formError}</div>}<Button className="full-button" icon={Play} disabled={busy || suiteLoading} onClick={launch}>{busy ? 'Launching benchmark…' : 'Run benchmark'}</Button><p className="side-footnote">Demo mode runs offline. Live mode uses Bifrost (and Tavily for research).</p></Panel>
       </aside>
     </div>
   </>
@@ -299,15 +301,11 @@ function EventItem({ event, active = false }) {
 }
 
 function ArenaPage({ experiment, events, runs, activeFault, onReplay, onPause, paused, onNavigate, replayMode = false, replayCursor = 0, replayTotal = 0, onReplaySeek }) {
-  const faultCount = events.filter((e) => /failed|fault|poison|latency/.test(e.event_type || '')).length
-  const currentRun = experiment?.runs?.find((r) => r.status === 'running') || experiment?.runs?.[experiment.runs.length - 1]
   return <>
     <PageHeading page="arena" action={<div className="arena-toolbar"><Badge tone={experiment ? 'green' : 'muted'} dot>{experiment ? experiment.status : 'Awaiting run'}</Badge><Button variant="secondary" size="sm" icon={RefreshCw} onClick={onReplay}>Replay run</Button></div>} />
-    <div className="arena-header-strip"><div><span className="eyebrow">RIFT DIGITAL TWIN</span><b>{experiment?.title || 'Simulation environment'}</b><small>{experiment ? `${experiment.runs?.length || 0} executions · ${events.length} captured events` : 'Launch a benchmark to see agents move through the research network.'}</small></div><div className="arena-readouts"><div><span>Events</span><b>{events.length}</b></div><div><span>Faults</span><b className="text-red">{faultCount}</b></div><div><span>Current run</span><b>{currentRun ? short(currentRun.id) : '—'}</b></div></div></div>
-    <div className="arena-layout"><div className="arena-main"><div className="arena-stage"><div className="arena-stage-top"><div className="stage-legend"><span><i className="legend-model" /> Bifrost</span><span><i className="legend-research" /> Tavily</span><span><i className="legend-agent" /> Agents</span><span><i className="legend-fault" /> Faults</span></div><Badge tone={replayMode ? 'violet' : 'green'} dot>{replayMode ? 'Recorded replay' : 'Live event stream'}</Badge></div><Arena3D events={events} fault={activeFault} paused={paused} /><div className="arena-stage-bottom"><div><span className="live-pulse" /> {replayMode ? 'RECORDED EXECUTION' : 'REAL-TIME EXECUTION'}</div><div className="stage-controls"><button onClick={onPause}>{paused ? <Play size={14} /> : <Pause size={14} />}{paused ? 'Resume' : 'Pause'}</button><button onClick={onReplay}><RefreshCw size={14} /> Replay</button></div></div>{replayMode && <div className="replay-scrubber"><span>{replayCursor} / {replayTotal} events</span><input aria-label="Replay position" type="range" min="0" max={Math.max(1, replayTotal)} value={Math.min(replayCursor, replayTotal)} onChange={(e) => onReplaySeek?.(Number(e.target.value))} /><span>{replayTotal ? `${Math.round(replayCursor / replayTotal * 100)}%` : '0%'}</span></div>}</div><div className="arena-run-strip"><div><span>Active experiment</span><b>{experiment?.id || 'No experiment selected'}</b></div><div><span>Evidence mode</span><b>{experiment?.evidence_mode || 'Snapshot'}</b></div><div><span>Fault severity</span><b>{experiment?.severity ?? 0}%</b></div><div><span>Master seed</span><b>{experiment?.master_seed ?? '—'}</b></div></div></div>
-      <Panel className="event-panel"><PanelHeading title="Execution stream" detail="Recorded backend events" action={<Badge tone="blue">{events.length}</Badge>} /><div className="event-list">{events.slice(-16).reverse().map((event, i) => <EventItem key={event.id || `${event.sequence}-${i}`} event={event} active={i === 0} />)}{!events.length && <EmptyState icon={Radio} title="Waiting for execution" detail="Launch a benchmark to stream agent, model and tool events." action={<Button size="sm" onClick={() => onNavigate('benchmark')}>Open Benchmark Lab</Button>} />}</div></Panel>
-    </div>
-    {experiment && <Panel className="recent-run-panel"><PanelHeading title="Experiment runs" detail="Select a run to inspect the full trace." action={<Button size="sm" variant="secondary" onClick={() => onNavigate('runs')}>Open inspector <ArrowRight size={14} /></Button>} /><div className="run-chip-row">{(experiment.runs || []).slice(0, 8).map((run) => <div className="run-chip" key={run.id}><span className={`tiny-status ${toneForStatus(run.status)}`} /><b>{short(run.agent_id)}</b><small>{run.task_id}</small><Badge tone={toneForStatus(run.status)}>{run.status}</Badge></div>)}</div></Panel>}
+    <ArenaLab experiment={experiment} events={events} paused={paused} onPause={onPause} onReplay={onReplay} onNavigate={onNavigate} replayMode={replayMode} replayCursor={replayCursor} replayTotal={replayTotal} onReplaySeek={onReplaySeek} activeFault={activeFault} />
+    <Panel className="event-panel arena-stream"><PanelHeading title="Execution stream" detail="Recorded backend events" action={<Badge tone="blue">{events.length}</Badge>} /><div className="event-list">{events.slice(-12).reverse().map((event, i) => <EventItem key={event.id || `${event.sequence}-${i}`} event={event} active={i === 0} />)}{!events.length && <EmptyState title="No events yet" detail="Run a benchmark to stream live events." />}</div></Panel>
+    {experiment && <Panel className="recent-run-panel"><PanelHeading title="Experiment runs" detail={`${(experiment.runs || []).length} executions`} action={<Button size="sm" variant="secondary" onClick={() => onNavigate('runs')}>Open inspector <ArrowRight size={14} /></Button>} /></Panel>}
   </>
 }
 
@@ -403,7 +401,7 @@ function ParetoChart({ results }) {
     other !== point && other.cost <= point.cost && other.reliability >= point.reliability &&
     (other.cost < point.cost || other.reliability > point.reliability)
   )).sort((a, b) => a.cost - b.cost)
-  if (!points.length) return <Panel className="pareto-panel"><PanelHeading title="Cost vs reliability frontier" detail="Efficiency is meaningful only when provider-reported costs and complete repeated trials are available."/><EmptyState icon={GitCompareArrows} title="Not enough measured data" detail="Run the same tasks for each agent with at least two repetitions and configure provider pricing or verified per-run cost reporting. The chart will plot cost per verified success against pass^k." /></Panel>
+  if (!points.length) return <Panel className="pareto-panel"><PanelHeading title="Cost vs reliability frontier" detail="Cost per success vs pass^k."/><EmptyState icon={GitCompareArrows} title="Not enough measured data" detail="Run each agent at least twice and set model pricing to see this chart." /></Panel>
   const W = 760, H = 310, L = 68, R = 24, T = 20, B = 48
   const innerW = W - L - R, innerH = H - T - B
   const maxCost = Math.max(...points.map((point) => point.cost), 0.000001)
@@ -428,7 +426,7 @@ function ParetoChart({ results }) {
         {points.map((point) => <g key={`${point.agent_id}-${point.model}`} className="pareto-point"><title>{`${point.agent} · ${point.model}\nCost / success: $${point.cost.toFixed(6)}\npass^k: ${point.reliability}%\nk=${point.repetition_k}`}</title><circle cx={x(point.cost)} cy={y(point.reliability)} r={frontier.includes(point) ? 7 : 5} className={frontier.includes(point) ? 'pareto-point-mark frontier' : 'pareto-point-mark'}/><text x={x(point.cost)+10} y={y(point.reliability)-10} className="pareto-point-label">{point.agent}</text></g>)}
       </svg>
     </div>
-    <div className="pareto-footnote">Only configurations with complete pricing and complete repeated task groups are plotted. pass^k is the fraction of task/configuration groups where every one of the k repetitions succeeds. RIFT previously labelled this reliability@k; pass^k is the clearer mathematical name.</div>
+    <div className="pareto-footnote">Only fully priced, fully repeated configurations are plotted.</div>
   </Panel>
 }
 
@@ -885,6 +883,16 @@ function App() {
   const [selectedRun, setSelectedRun] = useState(null)
   const [activeExperimentId, setActiveExperimentId] = useState('')
   const [activeExperiment, setActiveExperiment] = useState(null)
+  const [plannedRuns, setPlannedRuns] = useState(0)
+  const [finishedReport, setFinishedReport] = useState(null)
+  useEffect(() => {
+    const id = activeExperiment?.id
+    const st = activeExperiment?.status
+    if (!id || !st || ['running', 'queued'].includes(st)) { setFinishedReport(null); return }
+    let live = true
+    api(`/experiments/${id}/report`).then((d) => { if (live) setFinishedReport(d) }).catch(() => {})
+    return () => { live = false }
+  }, [activeExperiment?.id, activeExperiment?.status])
   const [arenaEvents, setArenaEvents] = useState([])
   const [replayEvents, setReplayEvents] = useState([])
   const [replayCursor, setReplayCursor] = useState(0)
@@ -977,9 +985,10 @@ function App() {
     try {
       const result = await api('/experiments', { method: 'POST', body: JSON.stringify(payload) })
       setReplayMode(false); setReplayEvents([]); setReplayCursor(0); setActiveExperimentId(result.experiment_id); setActiveExperiment({ id: result.experiment_id, title: payload.title, status: 'running', runs: [] }); setArenaEvents([]); setActiveFault('none')
+      setPlannedRuns(result.run_count || 0)
       notify(`Experiment launched · ${result.run_count} executions`)
       await refresh()
-      navigate('runs')
+      navigate('arena')
     } catch (error) { notify(error.message, 'error'); throw error }
     finally { setBusy(false) }
   }
@@ -1063,6 +1072,7 @@ function App() {
     {sidebarOpen && <button className="mobile-scrim" onClick={() => setSidebarOpen(false)} aria-label="Close menu" />}
     <main className="main-area">
       <header className="topbar"><div className="topbar-left"><button className="mobile-menu" onClick={() => setSidebarOpen(true)} aria-label="Open navigation"><Menu size={18} /></button><span>RIFT</span><ChevronRight size={13} /><b>{pageTitles[page]?.[0] || 'Benchmark Lab'}</b></div><div className="topbar-right"><Badge tone={integrations?.bifrost?.configured ? 'green' : 'muted'} dot>{integrations?.bifrost?.configured ? 'Bifrost ready' : 'Fixture mode'}</Badge><button className="icon-button" onClick={refresh} title="Refresh workspace"><RefreshCw size={16} /></button></div></header>
+      <RunDock busy={busy} experiment={activeExperiment} planned={plannedRuns} report={finishedReport} onNavigate={navigate} />
       <div className="page-root" key={page}>
         {page === 'bifrost' && <GatewayOverviewPage integrations={integrations} onNavigate={navigate} />}
         {page === 'route-lab' && <RouteLabPage initialWorkloadId={selectedGatewayWorkloadId} onWorkloadUsed={setSelectedGatewayWorkloadId} onNavigate={navigate} />}
