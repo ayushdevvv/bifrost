@@ -45,14 +45,23 @@ Use the existing Render Web Service `bifrost-1-qmoa.onrender.com`:
 Backend configuration:
 
 ```env
+ENVIRONMENT=production
 SERVE_FRONTEND=false
 DATABASE_URL=YOUR_NEON_POSTGRES_CONNECTION_STRING
+RIFT_AUTH_REQUIRED=false
+# No RIFT_AUTH_SECRET is needed for the no-login presentation frontend
+RIFT_ALLOW_LOCAL_ADAPTERS=false
+RIFT_ADAPTER_ALLOWED_HOSTS=your-agent-adapter.example.com
+RIFT_RATE_LIMIT_REDIS_URL=rediss://<user>:<password>@<private-redis-host>:<port>
 BIFROST_BASE_URL=https://bifrost-deploy.onrender.com/v1
 BIFROST_API_KEY=sk-bf-YOUR_VIRTUAL_KEY
 BIFROST_MODEL=YOUR_CONFIGURED_MODEL
 TAVILY_API_KEY=YOUR_TAVILY_KEY
 TAVILY_BASE_URL=https://api.tavily.com
 ```
+
+
+Before the first production deploy, provision a persistent Redis-compatible instance and set `RIFT_RATE_LIMIT_REDIS_URL` to its private TLS connection URL. The backend now refuses to start in production without reachable shared Redis because its in-memory development limiter is not safe across multiple workers or replicas. This presentation build runs in one shared workspace with auth disabled; anyone who can reach it can access and modify the same runs and consume provider resources. Restrict access at the hosting layer; do not expose it as a public multi-user service. Set `RIFT_ADAPTER_ALLOWED_HOSTS` to the exact hostnames of your adapter services (or leave it empty until any are registered); do not use wildcards. The repository retains backend authentication endpoints, but the current presentation frontend does not show a login screen. Re-enable `RIFT_AUTH_REQUIRED=true` only when deploying a frontend with the matching authenticated session flow and a stable `RIFT_AUTH_SECRET`.
 
 `BIFROST_BASE_URL` is the separate AI gateway, **not** the RIFT API base URL. The code has this gateway URL as its default; set the same value explicitly in Render if an older `BIFROST_BASE_URL` environment variable is already present. Keep the Bifrost virtual key, Tavily key, and database credentials only on the backend.
 

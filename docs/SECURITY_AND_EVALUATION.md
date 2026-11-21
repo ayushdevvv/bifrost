@@ -1,40 +1,35 @@
 # Security and evaluation operations
 
-This guide describes the controls shipped in RIFT, the required production configuration, and the limits that remain. A green health check means the API/database are running; it is not a security certification or proof that a model judge is correct. In production, check that `security.rate_limits` reports `redis_shared_sliding_window`.
+This document describes current demo-mode behaviour, the optional authenticated deployment path, and the remaining security/evaluation limits. A green health check is not a security certification or proof that a model judge is correct.
 
-## 1. Production configuration
+## 1. Current presentation deployment (no login)
 
-Copy `backend/.env.example` to `backend/.env` and set at least:
+The hackathon frontend opens directly into one shared workspace. Configure the backend to match:
 
 ```env
 ENVIRONMENT=production
-RIFT_AUTH_REQUIRED=true
-RIFT_AUTH_SECRET=<at-least-32-random-characters>
-RIFT_RATE_LIMIT_REDIS_URL=rediss://<user>:<password>@<redis-host>:<port>
+RIFT_AUTH_REQUIRED=false
 RIFT_ALLOW_LOCAL_ADAPTERS=false
-RIFT_ADAPTER_ALLOWED_HOSTS=your-adapter.example.com
+RIFT_ADAPTER_ALLOWED_HOSTS=your-agent-adapter.example.com
+RIFT_RATE_LIMIT_REDIS_URL=rediss://<user>:<password>@<redis-host>:<port>
 ```
 
-Generate secrets with a cryptographically secure generator, for example:
+`RIFT_AUTH_SECRET` is not used when `RIFT_AUTH_REQUIRED=false`. Production startup still requires reachable shared Redis, local adapter access disabled, and a valid adapter allowlist for remote adapter registrations. If `RIFT_PUBLIC_API_BASE_URL` is configured for live event streaming, production also requires a stable `RIFT_ADAPTER_EVENT_SECRET`. If the provider fault proxy is enabled, `RIFT_PROXY_TOKEN` must be at least 32 characters.
 
-```bash
-python -c "import secrets; print(secrets.token_urlsafe(48))"
+**This no-login mode is only for a closed hackathon/demo deployment.** Anyone who can reach the app can read and modify the shared benchmark workspace, register adapters, start runs and consume configured Bifrost/Judge0 resources. Do not place customer or confidential data in it, and do not expose it to arbitrary users. Restrict access using a hosting-level access gate or network policy. Rate limits reduce abuse but do not create user identity, tenant isolation or per-user budgets.
+
+## 2. Optional authenticated workspace mode
+
+The backend retains the account and tenant-isolation implementation, but the current presentation frontend intentionally has no login screen. To use authenticated tenants, set:
+
+```env
+RIFT_AUTH_REQUIRED=true
+RIFT_AUTH_SECRET=<stable-random-secret-at-least-32-characters>
+RIFT_ALLOW_SIGNUP=false
+RIFT_RATE_LIMIT_REDIS_URL=rediss://<user>:<password>@<redis-host>:<port>
 ```
 
-Use a stable `RIFT_AUTH_SECRET` across all application instances. Production startup fails closed if authentication is disabled, the signing secret is absent, a shared Redis rate limiter is not configured/reachable, or local adapter access is enabled. Install the `redis` Python dependency (included in `backend/requirements.txt`) and use a private Redis endpoint with TLS (`rediss://`) where supported. If live adapter event streaming is enabled with `RIFT_PUBLIC_API_BASE_URL`, production also requires a stable `RIFT_ADAPTER_EVENT_SECRET`. If the provider fault proxy is enabled in production, `RIFT_PROXY_TOKEN` must be at least 32 characters.
-
-`RIFT_ALLOW_SIGNUP=false` disables public self-registration. The API currently supports email/password accounts but does not implement email verification, password reset, SSO, MFA or invitations; use signup-off plus controlled account provisioning for a closed deployment.
-
-## 2. Authentication and workspace isolation
-
-- Authentication is required by default. Passwords are stored as salted PBKDF2-HMAC-SHA256 hashes (310,000 iterations); plaintext passwords are never stored.
-- Access tokens are HMAC-signed, expire after 24 hours by default, and can be capped at seven days. Set `RIFT_AUTH_TOKEN_TTL_HOURS` between 1 and 168.
-- Logout increments the account's token version, revoking existing tokens on their next request.
-- The global identity store contains account records only. Workspace data is stored in a separate SQLite database file per tenant, or a separate hash-derived PostgreSQL schema per tenant. User-controlled strings are never interpolated into schema identifiers.
-- Background experiment work captures the initiating workspace context. HTTP API calls, MCP requests and WebSocket subscriptions all resolve against that workspace. WebSocket subscription now checks that the experiment exists in the authenticated tenant before joining the process-wide event hub.
-- The MCP connector is read-only and requires the same workspace bearer token as the API. Do not distribute a shared admin token to third-party clients.
-
-The browser currently keeps its short-lived bearer token in local storage. Protect the frontend from cross-site scripting, avoid injecting untrusted HTML, use HTTPS everywhere and keep frontend dependencies reviewed. An HttpOnly-cookie/CSRF session design would be a further hardening option for a public multi-user SaaS.
+Use a frontend build that includes the matching sign-in/token flow before enabling this setting; this repository's presentation frontend does not currently provide that flow and will receive HTTP 401 responses. Passwords in the retained backend auth path are stored as salted PBKDF2-HMAC-SHA256 hashes (310,000 iterations); access tokens are HMAC-signed, expire and can be revoked. Workspace data is stored in separate SQLite files or PostgreSQL schemas per tenant. This mode is not the active no-login demo configuration.
 
 ## 3. Rate limits
 
@@ -46,17 +41,17 @@ The application uses an atomic Redis sorted-set sliding window when `RIFT_RATE_L
 | API and fault-proxy routes | 120 requests / minute / peer IP |
 | MCP | 60 requests / minute / peer IP |
 
-Responses include HTTP 429 and `Retry-After`. Redis prunes expired entries atomically and each key expires after its window. Production startup refuses to run without a reachable Redis service. Development/test can fall back to process-local in-memory buckets.
+Responses include HTTP 429 and `Retry-After`. Production startup refuses to run without a reachable Redis service. Development/test can fall back to process-local in-memory buckets.
 
-These are IP-level application limits, not a complete abuse/quota system. Reverse proxies may make requests appear to originate from the same peer address. Configure trusted proxy handling at the ingress, add account/workspace spend quotas for public SaaS traffic, and do not trust arbitrary client-supplied `X-Forwarded-For` values. Keep a WAF/API-gateway limit as a second layer.
+These are IP-level limits, not a complete abuse/quota system. Reverse proxies may make requests appear to originate from the same peer. Configure trusted proxy handling at ingress, add account/workspace spend quotas before public multi-user use, and do not trust arbitrary client-supplied `X-Forwarded-For` values. Keep a WAF/API-gateway limit as a second layer.
 
 ## 4. Adapter egress restrictions
 
-Remote adapter registrations are restricted to HTTPS on port 443. When workspace authentication is required, the hostname must match an exact operator-owned entry in `RIFT_ADAPTER_ALLOWED_HOSTS`. Wildcards are not supported. RIFT resolves the hostname before each request and rejects private, loopback, link-local, reserved or otherwise non-public IP addresses. Adapter calls do not follow redirects. Credentials in endpoint URLs and URL fragments are rejected. Loopback HTTP is available only when `RIFT_ALLOW_LOCAL_ADAPTERS=true`, which must be false in production.
+Remote adapter registrations are restricted to HTTPS on port 443. In production, the hostname must match an exact operator-owned entry in `RIFT_ADAPTER_ALLOWED_HOSTS`. Wildcards are not supported. RIFT resolves the hostname before each request and rejects private, loopback, link-local, reserved or otherwise non-public IP addresses. Adapter calls do not follow redirects. Credentials in endpoint URLs and URL fragments are rejected. Loopback HTTP is available only when `RIFT_ALLOW_LOCAL_ADAPTERS=true`, which must be false in production.
 
-Allowlist only domains controlled by your organization. DNS preflight validation is not a substitute for network-layer egress enforcement: DNS can change between validation and connection. For a public deployment, put adapter calls behind an outbound firewall/proxy that blocks RFC1918, loopback, link-local, cloud metadata and internal service ranges; ideally pin allowed adapter destinations to known egress addresses. Avoid registering arbitrary user-supplied endpoints on a shared public instance.
+Allowlist only domains controlled by your organization. DNS preflight validation is not a substitute for network-layer egress enforcement: DNS can change between validation and connection. For a public deployment, put adapter calls behind an outbound firewall/proxy that blocks RFC1918, loopback, link-local, cloud metadata and internal service ranges. Avoid registering arbitrary user-supplied endpoints on a shared no-login instance.
 
-Event-sink credentials are HMAC-signed per-run tokens scoped to one run and tenant, expire after one hour, and accept a bounded event payload (16 KB) and event count (500/run). Event telemetry should contain observable action summaries, not secrets, full customer records or hidden chain-of-thought.
+Event-sink credentials are HMAC-signed per-run tokens scoped to one run and tenant when auth is enabled, expire after one hour, and accept bounded event payloads and counts. In no-login mode, the shared workspace remains unscoped. Event telemetry should contain observable action summaries, not secrets, full customer records or hidden chain-of-thought.
 
 ## 5. Coding evaluation: Judge0 execution
 
@@ -75,7 +70,7 @@ Configuration examples:
 ```env
 JUDGE0_API_URL=https://your-judge0.example/api
 JUDGE0_API_KEY=<Judge0 X-Auth-Token, if required>
-JUDGE0_LANGUAGE_ID=71
+JUDGE0_LANGUAGE_ID=113
 JUDGE0_TIMEOUT_SECONDS=25
 ```
 
@@ -120,14 +115,14 @@ The proxy is deliberately narrow: it handles non-streaming OpenAI-compatible cha
 
 ## 9. Remaining production controls
 
-Before opening RIFT to arbitrary signups/adapters, add or configure:
+Before opening the current no-login presentation build to arbitrary users, add or configure:
 
 - A shared ingress/WAF rate limiter and account-level quotas for multi-worker deployments.
 - Network egress firewall rules for adapter and provider destinations.
 - Secret management/rotation and encrypted database/backups.
 - Tenant-aware retention, export and deletion policies.
 - Monitoring/alerting for auth failures, adapter errors, unexpected outbound calls, judge failures and provider spend.
-- Email verification, password reset, MFA/SSO or invite-only provisioning as appropriate.
+- A matching authenticated frontend, email verification, password reset, MFA/SSO or invite-only provisioning as appropriate.
 - A reviewed privacy policy and retention notice for uploaded prompts, task outputs, evidence and traces.
 
 RIFT contains application-layer controls, but this repository alone cannot configure your cloud account, WAF, firewall, DNS, database encryption, backup retention or provider credentials.

@@ -16,7 +16,7 @@ The app opens directly in **Benchmark Lab**. Product and architecture informatio
 | Failure analysis | Run controlled one-variable counterfactuals against the original task and evidence snapshot |
 | Regression suite | Save important failures and replay them against later agent versions |
 | Execution replay | Inspect the recorded sequence as a replayable timeline and 3D event view |
-| Evaluation reports | Review task quality, category metrics, pass@k, reliability@k, quality variance and cost completeness |
+| Evaluation reports | Review task quality, category metrics, pass@k, pass^k, quality variance and cost completeness |
 | Leaderboard | Rank configurations by measured task outcomes, not marketing claims |
 | Bifrost gateway | Optional model gateway integration and route workload testing |
 | MCP manifest monitor | Optional tool-server manifest history and drift alerts; not the primary product workflow |
@@ -37,10 +37,10 @@ The category graders are transparent MVP rubrics, not validated academic benchma
 - Every selected agent receives the same task objective and suite configuration. Research snapshot mode shares one evidence pack for the task across agents and repetitions.
 - Configurable repetitions run each selected agent/model/task combination multiple times. RIFT records the repetition index and deterministic seed.
 - `pass@k` is the observed fraction of repeated agent/task groups with at least one successful trial.
-- `reliability@k` is the observed fraction of groups where every repetition succeeds.
+- `pass^k` is the observed fraction of task/configuration groups where every one of the k repetitions succeeds. Earlier RIFT UI versions used the label `reliability@k` for this same quantity; use `pass^k` in reports and judging materials.
 - Quality standard deviation reports outcome spread across repeated trials. These are descriptive values for the configured repetitions, not universal estimates of production reliability.
 - Seeds reproduce RIFT's fault assignment and fixture decisions, not stochastic model output, external systems or live web results.
-- Experiments are capped at 80 runs, with configurable step, tool-call, wall-clock and per-run cost budgets.
+- Experiments are capped at 200 runs, with configurable step, tool-call, wall-clock and per-run cost budgets.
 
 ## Framework-independent adapter and traces
 
@@ -87,6 +87,10 @@ Demo mode uses clearly labelled generated fixtures and does not contact Bifrost 
 - Built-in RIFT agents are lightweight reference baselines. The primary framework-independence path is the external adapter for existing agents.
 - Agent traces are only as complete as the events reported by the adapter. Bifrost observes model traffic through the gateway but cannot infer private agent planning or memory transitions.
 - The research and support judges are model-assisted. Exact quote checks are deterministic, but semantic entailment and policy correctness still need human/domain review.
-- Authentication, per-workspace SQLite/PostgreSQL isolation, revocable tokens, rate limiting, adapter host allowlists and tenant-checked WebSockets are included. The rate limiter is per-process; configure a shared ingress limiter for replicas.
+- Backend authentication and tenant isolation are retained as an optional path, but the current presentation frontend runs with `RIFT_AUTH_REQUIRED=false` in one shared workspace. This mode is not safe for an unrestricted public multi-user deployment. Production rate limiting uses shared Redis; also configure a shared ingress limiter for replicas.
 - Adapter DNS preflight checks do not replace network-layer egress firewalls. Configure private-network blocking and cloud metadata protection at the deployment boundary.
 - Email verification, password reset, MFA/SSO, tenant retention/deletion workflows, encrypted backups and full operational monitoring remain deployment/product work.
+
+## Real Coding-10 publication
+
+`tools/publish_live_coding10.py` is the repeatable live publication runner. It launches two external agent configurations (a plain Python loop and a LangGraph plan/implement/validate/review graph) over all ten tasks with five repetitions, then repeats with an agent-side syntax-check tool outage. It writes raw JSON and Markdown from actual RIFT experiment records. See [`LIVE_CODING10_PUBLICATION.md`](LIVE_CODING10_PUBLICATION.md). Do not publish numbers until both conditions finish in live mode with `validation_status=executed`.

@@ -39,6 +39,19 @@ class RiftApiTests(unittest.TestCase):
         cls.client_context.__exit__(None, None, None)
         TMP.cleanup()
 
+    def test_no_login_demo_workspace_is_accessible_without_bearer_token(self):
+        old_required = rift.RIFT_AUTH_REQUIRED
+        rift.RIFT_AUTH_REQUIRED = False
+        try:
+            response = self.client.get("/api/agents")
+            self.assertEqual(response.status_code, 200, response.text)
+            health = self.client.get("/api/health").json()
+            self.assertFalse(health["security"]["authentication_required"])
+            self.assertEqual(health["security"]["access_mode"], "single_shared_workspace")
+            self.assertTrue(health["security"]["public_workspace_warning"])
+        finally:
+            rift.RIFT_AUTH_REQUIRED = old_required
+
     def test_health_and_static_frontend(self):
         health = self.client.get("/api/health")
         self.assertEqual(health.status_code, 200)
@@ -313,7 +326,12 @@ class RiftApiTests(unittest.TestCase):
         self.assertGreaterEqual(summary["repeated_groups"], 1)
         self.assertEqual(summary["repetition_k"], 2)
         self.assertEqual(summary["pass_at_k_pct"], 100.0)
+        self.assertEqual(summary["pass_power_k_pct"], 100.0)
         self.assertEqual(summary["reliability_at_k_pct"], 100.0)
+        report = self.client.get(f"/api/experiments/{created.json()['experiment_id']}/report").json()
+        self.assertEqual(report["results"][0]["pass_at_k_pct"], 100.0)
+        self.assertEqual(report["results"][0]["pass_power_k_pct"], 100.0)
+        self.assertIn("pass^k", report["results"][0]["repeatability_metric_note"])
         self.assertTrue(any(row["category"] == "coding" for row in summary["by_category"]))
 
         # External adapters can stream bounded, per-run authenticated events.
@@ -577,7 +595,7 @@ class RiftApiTests(unittest.TestCase):
             "repetitions": 5,
         })
         self.assertEqual(too_many_runs.status_code, 400)
-        self.assertIn("80-run limit", too_many_runs.json()["detail"])
+        self.assertIn("200-run limit", too_many_runs.json()["detail"])
 
 
     def test_builtin_step_budget_stops_before_unbudgeted_step(self):

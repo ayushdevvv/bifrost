@@ -4,7 +4,7 @@ import {
   ChevronDown, ChevronLeft, ChevronRight, CircleHelp, Clock3, Command, Copy, Cpu,
   Database, Download, ExternalLink, Eye, FileBarChart, FileText, FlaskConical, Gauge,
   GitCompareArrows, Globe2, Layers3, LayoutDashboard, ListFilter, Menu, Network,
-  Pause, Play, Plus, Radio, RefreshCw, Search, Server, Settings2, ShieldCheck, LogOut,
+  Pause, Play, Plus, Radio, RefreshCw, Search, Server, Settings2, ShieldCheck,
   ShieldEllipsis, Sparkles, Square, Terminal, Timer, Trash2, Trophy, X, Zap,
   Fingerprint, Bug, FilePlus2, ScanSearch, History, Route, FileUp, CircleDollarSign, CheckCircle2, AlertCircle, Scale, GaugeCircle, Clock, Upload, Layers,
 } from 'lucide-react'
@@ -17,24 +17,24 @@ const WS_BASE = `${WS_PROTOCOL}//${API_URL.host}`
 const navGroups = [
   { label: 'Benchmark', items: [
     ['benchmark', 'Benchmark lab', FlaskConical], ['agents', 'Agent registry', Bot],
-    ['runs', 'Run inspector', Activity], ['compare', 'Compare experiments', GitCompareArrows],
+    ['compare', 'Compare experiments', GitCompareArrows], ['runs', 'Run inspector', Activity],
   ] },
   { label: 'Reliability', items: [
     ['chaos', 'Fault testing', ShieldEllipsis], ['counterfactuals', 'Failure analysis', ScanSearch],
-    ['regression', 'Regression suite', History], ['arena', 'Execution replay', Network],
+    ['regression', 'Regression suite', History],
   ] },
-  { label: 'Evaluation', items: [
+  { label: 'Results', items: [
     ['evaluation', 'Evaluation reports', FileBarChart], ['leaderboard', 'Leaderboard', Trophy],
   ] },
-  { label: 'Integrations', items: [
-    ['bifrost', 'Bifrost gateway', Gauge], ['traffic', 'Request datasets', Database],
-    ['research', 'Research snapshots', Globe2], ['mcp', 'Tool dependency monitor', Fingerprint],
-    ['settings', 'Integrations & settings', Settings2],
+  { label: 'Appendix', items: [
+    ['arena', 'Execution replay', Network], ['bifrost', 'Bifrost gateway', Gauge],
+    ['traffic', 'Request datasets', Database], ['research', 'Research snapshots', Globe2],
+    ['mcp', 'Tool dependency monitor', Fingerprint], ['settings', 'Integrations & settings', Settings2],
   ] },
 ]
 const pageTitles = {
   overview: ['Workspace', 'A clear view of agent benchmark activity and reliability.'],
-  benchmark: ['Agent Benchmark Lab', 'Evaluate complete agents across matched tasks, repeated trials and controlled failures.'],
+  benchmark: ['Agent Benchmark Lab', 'Compare complete agent configurations at task level across matched trials and controlled failures.'],
   agents: ['Agent registry', 'Connect agents built with any framework through one stable HTTP contract.'],
   research: ['Research snapshots', 'Inspect and pin evidence used by research-category tasks.'],
   runs: ['Run Inspector', 'Every observable action, result and failure.'],
@@ -53,20 +53,18 @@ const pageTitles = {
   traffic: ['Traffic replay', 'Build a reusable workload from representative production requests.'],
 }
 const defaultConfig = {
-  title: 'Research-10 agent benchmark', mode: 'demo', evidenceMode: 'snapshot', suiteId: 'research-10',
-  agentIds: ['agent-react', 'agent-planner'], models: 'general', taskIds: ['research-001', 'research-002'],
-  repetitions: 2, severity: 50, masterSeed: 42017,
-  faults: { provider: true, poison: true, latency: true, tool_unavailable: false, misleading_instruction: false },
+  title: 'Coding-10 agent benchmark', mode: 'demo', evidenceMode: 'snapshot', suiteId: 'coding-10',
+  agentIds: ['agent-react', 'agent-planner'], models: 'general', taskIds: [],
+  repetitions: 5, severity: 50, masterSeed: 42017,
+  faults: { provider: false, poison: false, latency: false, tool_unavailable: false, misleading_instruction: false },
   budgets: { max_steps: 20, max_tool_calls: 15, timeout_seconds: 120, max_cost_usd: 0.1 },
 }
 
 async function api(path, options = {}) {
-  const accessToken = localStorage.getItem('rift_access_token')
   const response = await fetch(`${API}${path}`, {
     ...options,
     headers: {
       ...(options.body ? { 'Content-Type': 'application/json' } : {}),
-      ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
       ...(options.headers || {}),
     },
   })
@@ -152,7 +150,7 @@ function BenchmarkPage({ agents, tasks, onLaunch, busy }) {
   const [formError, setFormError] = useState('')
   const suiteChoices = [
     { id: 'research-10', name: 'Research-10', category: 'Research', detail: 'Evidence quality, source verification and synthesis' },
-    { id: 'coding-10', name: 'Coding-10', category: 'Coding', detail: 'Python syntax and implementation-structure assertions' },
+    { id: 'coding-10', name: 'Coding-10', category: 'Coding', detail: 'Isolated Python execution with hidden task-level assertions in live mode' },
     { id: 'support-10', name: 'Support-10', category: 'Customer support', detail: 'Policy accuracy, privacy and safe communication' },
   ]
   const currentSuite = suiteChoices.find((suite) => suite.id === config.suiteId) || suiteChoices[0]
@@ -178,14 +176,14 @@ function BenchmarkPage({ agents, tasks, onLaunch, busy }) {
   const launch = async () => {
     setFormError('')
     if (!config.agentIds.length || !config.taskIds.length) return setFormError('Select at least one agent and one task.')
-    if (runCount > 80) return setFormError('Keep an experiment to 80 runs or fewer.')
+    if (runCount > 200) return setFormError('Keep an experiment to 200 runs or fewer.')
     if (!modelList.length) return setFormError('Enter at least one model route.')
     await onLaunch({ title: config.title, mode: config.mode, suite_id: config.suiteId, agent_ids: config.agentIds, models: modelList, task_ids: config.taskIds, evidence_mode: config.evidenceMode, repetitions: Number(config.repetitions), severity: Number(config.severity), master_seed: Number(config.masterSeed), faults: config.faults, budgets: config.budgets })
   }
   return <>
     <PageHeading page="benchmark" action={<Badge tone="green">Framework independent</Badge>} />
     <div className="benchmark-thesis-strip">
-      <div><span className="eyebrow">AGENT EVALUATION / NOT MODEL SCORES</span><h2>Same task. Same conditions. <em>Different agents.</em></h2><p>Compare prompts, tools, memory and retry behaviour through observable executions, not one-off model answers.</p></div>
+      <div><span className="eyebrow">TASK-LEVEL BENCHMARKING / COMPLETE AGENT CONFIGURATIONS</span><h2>Same task. Same conditions. <em>Different agents.</em></h2><p>Compare complete agent configurations, including prompts, tools, memory and retry behaviour, against identical task-level workloads rather than isolated model responses.</p></div>
       <div className="benchmark-thesis-meta"><span><b>30</b><small>benchmark tasks</small></span><span><b>3</b><small>task categories</small></span><span><b>5×</b><small>repeat trials</small></span></div>
     </div>
     <div className="benchmark-layout">
@@ -199,7 +197,7 @@ function BenchmarkPage({ agents, tasks, onLaunch, busy }) {
         <div className="suite-description"><span className="suite-description-mark">{currentSuite.category.slice(0,1)}</span><div><b>{currentSuite.name}</b><p>{currentSuite.detail}</p></div><Badge tone="muted">10 tasks</Badge></div>
         </Panel>
         <Panel className="form-panel"><PanelHeading title="Agent configurations" detail={`${config.agentIds.length} selected · compare the entire agent, not just its underlying model`} action={<button className="text-button" onClick={() => update('agentIds', agents.map((agent) => agent.id))}>Select all</button>} /><div className="choice-grid">{agents.map((agent) => <button type="button" className={`choice-card ${config.agentIds.includes(agent.id) ? 'selected' : ''}`} key={agent.id} onClick={() => toggleList('agentIds', agent.id)}><span className="choice-check">{config.agentIds.includes(agent.id) && <Check size={12} />}</span><span className="agent-avatar"><Bot size={20} /></span><span className="choice-copy"><b>{agent.name}</b><small>{agent.framework} · {agent.kind === 'builtin' ? 'Built-in baseline' : 'External adapter'}</small></span><span className="agent-framework-tag">{agent.kind === 'builtin' ? 'RIFT' : 'HTTP'}</span></button>)}</div></Panel>
-        <Panel className="form-panel"><PanelHeading title={`${currentSuite.name} task set`} detail={`${config.taskIds.length} of ${suiteTasks.length} selected`} action={<div className="task-selection-actions"><button className="text-button" onClick={() => update('taskIds', suiteTasks.map((task) => task.id))}>Select all</button><button className="text-button" onClick={() => update('taskIds', [])}>Clear</button></div>} /><div className="task-list">{suiteTasks.map((task, index) => <button type="button" key={task.id} className={`task-choice ${config.taskIds.includes(task.id) ? 'selected' : ''}`} onClick={() => toggleList('taskIds', task.id)}><span className="task-number">{String(index + 1).padStart(2, '0')}</span><span className="task-copy"><b>{task.title}</b><small>{task.category} · {task.difficulty}</small></span><Badge tone={task.difficulty === 'Hard' ? 'red' : task.difficulty === 'Easy' ? 'green' : 'blue'}>{task.difficulty}</Badge><span className="choice-check">{config.taskIds.includes(task.id) && <Check size={12} />}</span></button>)}{suiteLoading && <div className="loading-line"><span/>Loading task suite…</div>}</div><div className="suite-grading-note"><ShieldCheck size={15}/><span>{config.suiteId === 'coding-10' ? 'Code is parsed and checked structurally. Submitted code is not executed by the RIFT API.' : config.suiteId === 'support-10' ? 'Responses are checked against task-specific policy, privacy and communication criteria.' : 'Research outputs are checked for evidence coverage, expected concepts and citation integrity.'}</span></div></Panel>
+        <Panel className="form-panel"><PanelHeading title={`${currentSuite.name} task set`} detail={`${config.taskIds.length} of ${suiteTasks.length} selected`} action={<div className="task-selection-actions"><button className="text-button" onClick={() => update('taskIds', suiteTasks.map((task) => task.id))}>Select all</button><button className="text-button" onClick={() => update('taskIds', [])}>Clear</button></div>} /><div className="task-list">{suiteTasks.map((task, index) => <button type="button" key={task.id} className={`task-choice ${config.taskIds.includes(task.id) ? 'selected' : ''}`} onClick={() => toggleList('taskIds', task.id)}><span className="task-number">{String(index + 1).padStart(2, '0')}</span><span className="task-copy"><b>{task.title}</b><small>{task.category} · {task.difficulty}</small></span><Badge tone={task.difficulty === 'Hard' ? 'red' : task.difficulty === 'Easy' ? 'green' : 'blue'}>{task.difficulty}</Badge><span className="choice-check">{config.taskIds.includes(task.id) && <Check size={12} />}</span></button>)}{suiteLoading && <div className="loading-line"><span/>Loading task suite…</div>}</div><div className="suite-grading-note"><ShieldCheck size={15}/><span>{config.suiteId === 'coding-10' ? (config.mode === 'live' ? 'Live mode executes candidate code in Judge0 with hidden task assertions. Demo mode uses structural fixtures only.' : 'Demo mode uses AST and structural fixtures only. Live mode executes candidate code in an isolated Judge0 sandbox.') : config.suiteId === 'support-10' ? 'Responses are checked against task-specific policy, privacy and communication criteria.' : 'Research outputs are checked for evidence coverage, expected concepts and citation integrity.'}</span></div></Panel>
         <Panel className="form-panel"><PanelHeading title="Execution budgets" detail="Identical limits apply to every agent trial."/><div className="budget-grid">{[['max_steps','Max steps',1,100],['max_tool_calls','Max tool calls',1,100],['timeout_seconds','Timeout (seconds)',10,600]].map(([key, label, min, max]) => <Field label={label} key={key}><input type="number" min={min} max={max} value={config.budgets[key]} onChange={(e) => update('budgets', { ...config.budgets, [key]: Number(e.target.value) })} /></Field>)}<Field label="Max cost per run (USD)"><input type="number" min="0.001" max="100" step="0.001" value={config.budgets.max_cost_usd} onChange={(e) => update('budgets', { ...config.budgets, max_cost_usd: Number(e.target.value) })} /></Field></div></Panel>
       </div>
       <aside className="benchmark-side">
@@ -421,10 +419,10 @@ function EvaluationPage() {
         <StatCard icon={Activity} label="Successful runs" value={`${data.successes}/${data.total_runs}`} detail={`${percent(data.success_rate)} task completion`} accent="green"/>
       </div>
       <Panel className="repeatability-panel">
-        <div className="repeatability-heading"><div><div className="eyebrow">REPEATED-TRIAL RELIABILITY</div><h3>One good run is not a benchmark.</h3><p>Metrics below include only complete groups with more than one repetition. A missing value means there is not enough repeated data yet.</p></div><Badge tone={data.repeated_groups ? 'green' : 'muted'}>{data.repeated_groups || 0} repeated groups</Badge></div>
+        <div className="repeatability-heading"><div><div className="eyebrow">REPEATED-TRIAL RELIABILITY</div><h3>One good run is not a benchmark.</h3><p>Observed repeated-trial rates over complete task/configuration groups. pass@k means at least one success in k attempts; pass^k means all k attempts succeed. Earlier RIFT versions labelled pass^k as reliability@k.</p></div><Badge tone={data.repeated_groups ? 'green' : 'muted'}>{data.repeated_groups || 0} repeated groups</Badge></div>
         <div className="repeatability-metrics">
           <div><span>Pass@k</span><b>{percent(data.pass_at_k_pct)}</b><small>At least one success in k trials</small></div>
-          <div><span>Reliability@k</span><b>{percent(data.reliability_at_k_pct)}</b><small>Every repetition succeeds</small></div>
+          <div><span>pass^k · all k succeed</span><b>{percent(data.pass_power_k_pct ?? data.reliability_at_k_pct)}</b><small>RIFT previously labelled this reliability@k; it is the pass^k metric.</small></div>
           <div><span>Mean quality variance</span><b>{data.quality_stddev == null ? '—' : data.quality_stddev.toFixed(3)}</b><small>Population σ across trial groups</small></div>
           <div><span>Repetition count</span><b>{data.repetition_k ? `${data.repetition_k}×` : '—'}</b><small>Maximum complete group size</small></div>
         </div>
@@ -440,6 +438,44 @@ function EvaluationPage() {
   </>
 }
 
+function ParetoChart({ results }) {
+  const points = results
+    .filter((item) => item.cost_per_success_usd != null && item.pass_power_k_pct != null && Number.isFinite(Number(item.cost_per_success_usd)) && Number.isFinite(Number(item.pass_power_k_pct)))
+    .map((item) => ({ ...item, cost: Number(item.cost_per_success_usd), reliability: Number(item.pass_power_k_pct) }))
+    .filter((item) => item.cost >= 0 && item.reliability >= 0 && item.reliability <= 100)
+  const frontier = points.filter((point) => !points.some((other) =>
+    other !== point && other.cost <= point.cost && other.reliability >= point.reliability &&
+    (other.cost < point.cost || other.reliability > point.reliability)
+  )).sort((a, b) => a.cost - b.cost)
+  if (!points.length) return <Panel className="pareto-panel"><PanelHeading title="Cost vs reliability frontier" detail="Efficiency is meaningful only when provider-reported costs and complete repeated trials are available."/><EmptyState icon={GitCompareArrows} title="Not enough measured data" detail="Run the same tasks for each agent with at least two repetitions and configure provider pricing or verified per-run cost reporting. The chart will plot cost per verified success against pass^k." /></Panel>
+  const W = 760, H = 310, L = 68, R = 24, T = 20, B = 48
+  const innerW = W - L - R, innerH = H - T - B
+  const maxCost = Math.max(...points.map((point) => point.cost), 0.000001)
+  const minCost = Math.min(...points.map((point) => point.cost))
+  const spread = Math.max(maxCost - minCost, maxCost * 0.18, 0.000001)
+  const xMin = Math.max(0, minCost - spread * 0.12)
+  const xMax = maxCost + spread * 0.12
+  const x = (cost) => L + ((cost - xMin) / (xMax - xMin || 1)) * innerW
+  const y = (reliability) => T + ((100 - reliability) / 100) * innerH
+  const polyline = frontier.map((point) => `${x(point.cost)},${y(point.reliability)}`).join(' ')
+  return <Panel className="pareto-panel">
+    <PanelHeading title="Cost vs reliability frontier" detail="Each point is a complete agent configuration. Lower cost and higher pass^k are better; the frontier marks non-dominated configurations." />
+    <div className="pareto-legend"><span><i className="pareto-dot frontier"/> Pareto-efficient</span><span><i className="pareto-dot"/> Other configurations</span><span className="pareto-note">Cost per verified task success · USD</span></div>
+    <div className="pareto-chart-wrap">
+      <svg className="pareto-chart" viewBox={`0 0 ${W} ${H}`} role="img" aria-label="Scatter plot of cost per verified success versus pass to the k power reliability">
+        {[0, 25, 50, 75, 100].map((tick) => <g key={tick}><line x1={L} x2={W-R} y1={y(tick)} y2={y(tick)} className="pareto-gridline"/><text x={L-12} y={y(tick)+4} textAnchor="end" className="pareto-axis-label">{tick}%</text></g>)}
+        <line x1={L} y1={T} x2={L} y2={H-B} className="pareto-axis"/><line x1={L} y1={H-B} x2={W-R} y2={H-B} className="pareto-axis"/>
+        {[0, .25, .5, .75, 1].map((part) => { const value = xMin + (xMax-xMin)*part; return <g key={part}><line x1={x(value)} x2={x(value)} y1={T} y2={H-B} className="pareto-gridline vertical"/><text x={x(value)} y={H-B+22} textAnchor="middle" className="pareto-axis-label">${value.toFixed(value < .01 ? 4 : 3)}</text></g> })}
+        <text x={16} y={T+innerH/2} transform={`rotate(-90 16 ${T+innerH/2})`} className="pareto-axis-title" textAnchor="middle">pass^k · all k trials succeed</text>
+        <text x={L+innerW/2} y={H-6} className="pareto-axis-title" textAnchor="middle">Cost per verified success (USD)</text>
+        {frontier.length > 1 && <polyline points={polyline} className="pareto-frontier-line"/>}
+        {points.map((point) => <g key={`${point.agent_id}-${point.model}`} className="pareto-point"><title>{`${point.agent} · ${point.model}\nCost / success: $${point.cost.toFixed(6)}\npass^k: ${point.reliability}%\nk=${point.repetition_k}`}</title><circle cx={x(point.cost)} cy={y(point.reliability)} r={frontier.includes(point) ? 7 : 5} className={frontier.includes(point) ? 'pareto-point-mark frontier' : 'pareto-point-mark'}/><text x={x(point.cost)+10} y={y(point.reliability)-10} className="pareto-point-label">{point.agent}</text></g>)}
+      </svg>
+    </div>
+    <div className="pareto-footnote">Only configurations with complete pricing and complete repeated task groups are plotted. pass^k is the fraction of task/configuration groups where every one of the k repetitions succeeds. RIFT previously labelled this reliability@k; pass^k is the clearer mathematical name.</div>
+  </Panel>
+}
+
 function ComparePage({ experiments }) {
   const [experimentId, setExperimentId] = useState(experiments[0]?.id || '')
   useEffect(() => { if (!experimentId && experiments[0]?.id) setExperimentId(experiments[0].id) }, [experiments, experimentId])
@@ -452,10 +488,11 @@ function ComparePage({ experiments }) {
     <PageHeading page="compare" action={<Field label="Experiment"><select value={experimentId} onChange={(e) => setExperimentId(e.target.value)}>{experiments.map((e) => <option key={e.id} value={e.id}>{e.title}</option>)}</select></Field>} />
     {loading ? <Panel><div className="loading-line"><span /> Loading experiment report…</div></Panel> : error ? <div className="form-error">{error}</div> : results.length ? <>
       <Panel className="compare-intro"><div><div className="eyebrow">MATCHED EXPERIMENT</div><h2>Performance is a system property.</h2><p>Compare agent and model configurations against shared tasks, budgets and seeded conditions.</p></div><div className="compare-intro-mark"><GitCompareArrows size={30} /></div></Panel>
+      <ParetoChart results={results} />
       <Panel className="compare-panel"><PanelHeading title="Agent configuration comparison" detail="Higher quality is better. Cost stays separate from quality." /><div className="compare-legend"><span><i className="bar-quality" /> Average quality</span><span><i className="bar-success" /> Task success</span></div><div className="compare-bars">{results.map((item) => <div className="compare-row" key={`${item.agent_id}-${item.model}`}><div className="compare-name"><b>{item.agent}</b><small>{item.model}</small></div><div className="compare-bar-stack"><div className="bar-line"><span className="bar-label">Quality</span><div className="bar-track"><i className="bar-quality" style={{ width: `${item.quality_avg || 0}%` }} /></div><b>{percent(item.quality_avg)}</b></div><div className="bar-line"><span className="bar-label">Success</span><div className="bar-track"><i className="bar-success" style={{ width: `${item.success_rate || 0}%` }} /></div><b>{percent(item.success_rate)}</b></div></div><div className="compare-cost"><span>Cost / verified success</span><b>{money(item.cost_per_success_usd)}</b></div></div>)}</div></Panel>
       <div className="stats-grid"><StatCard icon={ShieldCheck} label="Best success" value={percent(Math.max(...results.map((r) => r.success_rate || 0)))} detail="Among tested configurations" accent="green" /><StatCard icon={Clock3} label="Fastest average" value={results.some((r) => r.latency_avg_ms != null) ? `${(Math.min(...results.map((r) => r.latency_avg_ms).filter((x) => x != null)) / 1000).toFixed(2)}s` : '—'} detail="End-to-end latency" accent="cyan" /><StatCard icon={Globe2} label="Best evidence" value={percent(Math.max(...results.map((r) => r.evidence_score_avg || 0)))} detail="Evidence quality" accent="blue" /><StatCard icon={DollarSignIcon} label="Lowest cost / success" value={results.some((r) => r.cost_per_success_usd != null) ? money(Math.min(...results.map((r) => r.cost_per_success_usd).filter((x) => x != null))) : '—'} detail="Only priced runs included" accent="violet" /></div>
-      <Panel className="table-panel comparison-detail"><PanelHeading title="Execution quality breakdown" detail="Use matched models to isolate agent strategy, or matched agents to isolate model effects." /><div className="table-scroll"><table><thead><tr><th>Configuration</th><th>Evidence</th><th>Citation integrity</th><th>Consistency</th><th>Steps</th><th>Tool calls</th><th>Tokens</th><th>Latency</th><th>Poison resistance</th><th>Provider recovery</th><th>Tool outage success</th><th>Hostile-context success</th></tr></thead><tbody>{results.map((item) => <tr key={`detail-${item.agent_id}-${item.model}`}><td><b>{item.agent}</b><small>{item.framework} · {item.model}</small></td><td>{percent(item.evidence_score_avg)}</td><td>{percent(item.citation_integrity_avg)}</td><td>{item.quality_stddev == null ? '—' : `±${item.quality_stddev} pp`}</td><td>{number(item.steps_avg)}</td><td>{number(item.tool_calls_avg)}</td><td>{number(item.tokens_avg)}</td><td>{item.latency_avg_ms == null ? '—' : `${(item.latency_avg_ms / 1000).toFixed(2)}s`}</td><td>{percent(item.poison_resistance)}</td><td>{percent(item.provider_recovery)}</td><td>{percent(item.tool_fault_success)}</td><td>{percent(item.instruction_resistance)}</td></tr>)}</tbody></table></div></Panel>
-      <Panel className="attribution-panel"><div className="attribution-mark"><GitCompareArrows size={20} /></div><div><b>Read the experiment, not just the ranking.</b><p>Compare different agents using the same model to understand strategy effects. Compare multiple models within one agent to understand model effects. Repeat runs and quality spread help reveal consistency, not just peak performance.</p></div></Panel>
+      <Panel className="table-panel comparison-detail"><PanelHeading title="Execution quality breakdown" detail="Use matched models to isolate agent strategy, or matched agents to isolate model effects." /><div className="table-scroll"><table><thead><tr><th>Configuration</th><th>Evidence</th><th>Citation integrity</th><th>pass@k</th><th>pass^k</th><th>Steps</th><th>Tool calls</th><th>Tokens</th><th>Latency</th><th>Poison resistance</th><th>Provider recovery</th><th>Tool outage success</th><th>Hostile-context success</th></tr></thead><tbody>{results.map((item) => <tr key={`detail-${item.agent_id}-${item.model}`}><td><b>{item.agent}</b><small>{item.framework} · {item.model}</small></td><td>{percent(item.evidence_score_avg)}</td><td>{percent(item.citation_integrity_avg)}</td><td>{percent(item.pass_at_k_pct)}</td><td>{percent(item.pass_power_k_pct)}</td><td>{number(item.steps_avg)}</td><td>{number(item.tool_calls_avg)}</td><td>{number(item.tokens_avg)}</td><td>{item.latency_avg_ms == null ? '—' : `${(item.latency_avg_ms / 1000).toFixed(2)}s`}</td><td>{percent(item.poison_resistance)}</td><td>{percent(item.provider_recovery)}</td><td>{percent(item.tool_fault_success)}</td><td>{percent(item.instruction_resistance)}</td></tr>)}</tbody></table></div></Panel>
+      <Panel className="attribution-panel"><div className="attribution-mark"><GitCompareArrows size={20} /></div><div><b>Compare the agent configuration at task level.</b><p>Same model does not mean same agent configuration. Prompts, tools, memory, orchestration and retry strategies change task-level cost and outcomes. pass@k means at least one success in k trials; pass^k means all k trials succeed. Earlier RIFT versions labelled pass^k as reliability@k.</p></div></Panel>
     </> : <Panel><EmptyState title="No comparison data yet" detail="Complete a benchmark experiment with at least one agent and task." /></Panel>}
   </>
 }
@@ -520,7 +557,7 @@ function SettingsPage({ integrations, onTest, checking, health }) {
         </div>
         <div className="mcp-scope-row"><span><ShieldCheck size={16} /> Full read-only access</span><p>Assistants can search and inspect every saved RIFT data area: tasks, agents, complete experiment configuration, runs, ordered event traces, research sources, evidence snapshots, evaluation metrics, comparison reports and leaderboards. They cannot launch or cancel runs, register agents, change settings or trigger provider usage.</p></div>
         <div className="mcp-tools-list"><span>21 read-only tools</span><code>rift_search_workspace</code><code>rift_get_data_catalog</code><code>rift_get_overview</code><code>rift_list_tasks</code><code>rift_get_task</code><code>rift_list_agents</code><code>rift_get_agent</code><code>rift_list_experiments</code><code>rift_get_experiment</code><code>rift_list_runs</code><code>rift_get_run</code><code>rift_get_run_events</code><code>rift_list_events</code><code>rift_get_experiment_evidence</code><code>rift_get_leaderboard</code><code>rift_get_evaluation_summary</code><code>rift_get_experiment_report</code><code>rift_list_research_snapshots</code><code>rift_get_research_snapshot</code><code>rift_get_integration_status</code><code>rift_get_database_summary</code></div>
-        <div className="mcp-public-warning"><ShieldCheck size={16} /><p><b>Workspace-authenticated endpoint</b> Remote MCP clients must present a valid workspace bearer token. Access is read-only and scoped to the signed-in workspace.</p></div><p className="mcp-connect-note">Add the URL as a remote MCP server in your assistant's connector settings. Support depends on your plan and workspace permissions.</p>
+        <div className="mcp-public-warning"><ShieldCheck size={16} /><p><b>Shared demo workspace</b> Authentication is disabled in this build. Do not expose this read-only connector or the shared workspace to untrusted users.</p></div><p className="mcp-connect-note">Add the URL as a remote MCP server in your assistant's connector settings. Support depends on your plan and workspace permissions.</p>
       </Panel>
       <Panel className="setup-panel full-span"><PanelHeading title="Usage and evaluation" detail="Keep benchmark reports interpretable." /><div className="settings-info-grid"><div><b>Cost calculation</b><p>Set model input and output price per million tokens, plus Tavily search cost, to enable cost per verified success.</p></div><div><b>Evidence snapshots</b><p>Collect the same Tavily evidence once and share it across matched agents for fair comparison.</p></div><div><b>Live execution</b><p>Run real provider and research calls. Public web results may change between executions.</p></div><div><b>Agent instrumentation</b><p>Gateway usage is observable. Internal planning steps require adapter or OpenTelemetry events.</p></div></div></Panel>
     </div>
@@ -881,47 +918,12 @@ function TrafficReplayPage({ onNavigate, onSelectWorkload }) {
 function AboutPage() {
   return <>
     <PageHeading page="about" />
-    <div className="about-layout"><Panel className="about-main"><div className="eyebrow">RIFT ARENA / ENGINEERING NOTES</div><h2>Make AI gateway decisions with evidence.</h2><p>RIFT sits above Bifrost as a route evaluation and reliability workbench. It replays workloads against candidate models, measures task assertions, latency and configured cost, then preserves failures for controlled retesting. It does not replace or silently reconfigure the gateway.</p><div className="about-pill-row"><Badge tone="muted">Bifrost</Badge><Badge tone="muted">FastAPI</Badge><Badge tone="muted">React</Badge><Badge tone="muted">SQLite / Neon</Badge><Badge tone="muted">OpenAI-compatible API</Badge></div></Panel><div className="about-capabilities">{[[Route,'Route evaluation','Matched Bifrost route comparisons using reusable request workloads.'],[Scale,'Counterfactual analysis','Trace-derived hypotheses with controlled one-variable reruns.'],[History,'Regression memory','Saved failure cases with preserved seed and evidence snapshots.'],[Fingerprint,'MCP monitoring','Optional tool-server manifest change detection.']].map(([Icon,title,detail]) => <Panel className="about-capability" key={title}><Icon size={18}/><div><b>{title}</b><p>{detail}</p></div></Panel>)}</div></div>
+    <div className="about-layout"><Panel className="about-main"><div className="eyebrow">RIFT / ENGINEERING NOTES</div><h2>Task-level benchmarks for complete agent configurations.</h2><p>RIFT compares complete agents at task level across identical workloads and repeated trials. It combines task outcomes with observed steps, tool calls, model usage, cost and latency, then tests how those agents behave when dependencies fail. Bifrost is an optional telemetry source, not the product centre.</p><div className="about-pill-row"><Badge tone="muted">Bifrost</Badge><Badge tone="muted">FastAPI</Badge><Badge tone="muted">React</Badge><Badge tone="muted">SQLite / Neon</Badge><Badge tone="muted">OpenAI-compatible API</Badge></div></Panel><div className="about-capabilities">{[[FlaskConical,'Task-level evaluation','Matched tasks, repeated trials and agent configuration comparisons.'],[Scale,'Counterfactual analysis','Trace-derived hypotheses with controlled one-variable reruns.'],[History,'Regression memory','Saved failure cases with preserved seed and evidence snapshots.'],[Fingerprint,'Optional integrations','Gateway correlation and MCP monitoring remain supporting tools, not the core product.']].map(([Icon,title,detail]) => <Panel className="about-capability" key={title}><Icon size={18}/><div><b>{title}</b><p>{detail}</p></div></Panel>)}</div></div>
   </>
 }
 
-function AuthScreen({ onAuthenticated }) {
-  const [mode, setMode] = useState('login')
-  const [email, setEmail] = useState('')
-  const [password, setPassword] = useState('')
-  const [busy, setBusy] = useState(false)
-  const [error, setError] = useState('')
-  const submit = async (event) => {
-    event.preventDefault()
-    setBusy(true); setError('')
-    try {
-      const result = await api(`/auth/${mode === 'login' ? 'login' : 'register'}`, { method: 'POST', body: JSON.stringify({ email, password }) })
-      onAuthenticated(result)
-    } catch (err) { setError(err.message || 'Unable to authenticate.') }
-    finally { setBusy(false) }
-  }
-  return <main className="auth-screen">
-    <section className="auth-card">
-      <div className="auth-brand"><span className="brand-symbol"><i/><i/><i/></span><div><b>RIFT</b><small>AGENT BENCHMARKS</small></div></div>
-      <div className="auth-eyebrow">PRIVATE WORKSPACE</div>
-      <h1>{mode === 'login' ? 'Sign in to RIFT' : 'Create your workspace'}</h1>
-      <p className="auth-intro">Run controlled agent evaluations in an isolated workspace. Your benchmarks, agents and traces stay separate from other accounts.</p>
-      <form onSubmit={submit} className="auth-form">
-        <label>Email address<input type="email" autoComplete="email" required maxLength={254} value={email} onChange={(event) => setEmail(event.target.value)} placeholder="you@company.com" /></label>
-        <label>Password<input type="password" autoComplete={mode === 'login' ? 'current-password' : 'new-password'} required minLength={10} maxLength={128} value={password} onChange={(event) => setPassword(event.target.value)} placeholder="At least 10 characters" /></label>
-        {error && <div className="auth-error" role="alert">{error}</div>}
-        <button className="auth-submit" type="submit" disabled={busy}>{busy ? 'Please wait…' : mode === 'login' ? 'Continue to workspace' : 'Create workspace'} <ArrowRight size={16}/></button>
-      </form>
-      <div className="auth-switch">{mode === 'login' ? 'New to RIFT?' : 'Already have an account?'} <button onClick={() => { setMode(mode === 'login' ? 'register' : 'login'); setError('') }}>{mode === 'login' ? 'Create an account' : 'Sign in'}</button></div>
-      <div className="auth-foot"><ShieldCheck size={14}/> Workspace-isolated data · Short-lived bearer sessions</div>
-    </section>
-    <aside className="auth-aside"><div className="auth-aside-rule"/><span>AGENT EVALUATION INFRASTRUCTURE</span><h2>Measure the system.<br/>Not just the model.</h2><p>Repeatable tasks, observed execution, controlled failure and evidence you can inspect.</p><div className="auth-aside-metrics"><div><b>01</b><small>Matched tasks</small></div><div><b>02</b><small>Repeated trials</small></div><div><b>03</b><small>Failure replay</small></div></div></aside>
-  </main>
-}
-
 function App() {
-  const [session, setSession] = useState({ ready: false, required: true, user: null })
-  const [page, setPage] = useState((location.hash.replace('#', '') === 'overview' || !location.hash) ? 'benchmark' : location.hash.replace('#', ''))
+  const [page, setPage] = useState('benchmark')
   const [selectedGatewayWorkloadId, setSelectedGatewayWorkloadId] = useState('')
   const [agents, setAgents] = useState([])
   const [tasks, setTasks] = useState([])
@@ -955,32 +957,10 @@ function App() {
     } catch (error) { notify(error.message, 'error') }
   }, [notify])
 
-  useEffect(() => {
-    let active = true
-    api('/auth/me').then((data) => {
-      if (active) setSession({ ready: true, required: Boolean(data.required), user: data.user || null })
-    }).catch(() => {
-      localStorage.removeItem('rift_access_token')
-      if (active) setSession({ ready: true, required: true, user: null })
-    })
-    return () => { active = false }
-  }, [])
-  useEffect(() => {
-    if (!session.ready || (session.required && !session.user)) return
-    refresh()
-  }, [refresh, session.ready, session.required, session.user])
-  const onAuthenticated = (result) => {
-    localStorage.setItem('rift_access_token', result.access_token)
-    setSession({ ready: true, required: true, user: result.user })
-  }
-  const signOut = async () => {
-    try { await api('/auth/logout', { method: 'POST' }) } catch { /* clear the local session even if the API is offline */ }
-    localStorage.removeItem('rift_access_token')
-    setSession({ ready: true, required: true, user: null })
-    setSelectedRun(null); setActiveExperimentId(''); setActiveExperiment(null); setAgents([]); setExperiments([]); setRuns([])
-  }
-  if (!session.ready) return <div className="auth-loading"><span className="brand-symbol"><i/><i/><i/></span><small>Opening RIFT workspace</small></div>
-  if (session.required && !session.user) return <AuthScreen onAuthenticated={onAuthenticated} />
+  // RIFT currently runs as a single shared demo workspace. Authentication is
+  // intentionally disabled in this build; keep all hooks unconditional so a
+  // configuration change can never change the hook order between renders.
+  useEffect(() => { refresh() }, [refresh])
   useEffect(() => {
     const onHash = () => setPage((location.hash.replace('#', '') === 'overview' || !location.hash) ? 'benchmark' : location.hash.replace('#', ''))
     window.addEventListener('hashchange', onHash)
@@ -1012,7 +992,7 @@ function App() {
     loadExperiment()
     timer = window.setInterval(loadExperiment, 1800)
     try {
-      socket = new WebSocket(`${WS_BASE}/ws/${activeExperimentId}?token=${encodeURIComponent(localStorage.getItem('rift_access_token') || '')}`)
+      socket = new WebSocket(`${WS_BASE}/ws/${activeExperimentId}`)
       socket.onmessage = (event) => {
         const item = JSON.parse(event.data)
         setArenaEvents((old) => [...old, item].slice(-300))
@@ -1050,7 +1030,7 @@ function App() {
       setReplayMode(false); setReplayEvents([]); setReplayCursor(0); setActiveExperimentId(result.experiment_id); setActiveExperiment({ id: result.experiment_id, title: payload.title, status: 'running', runs: [] }); setArenaEvents([]); setActiveFault('none')
       notify(`Experiment launched · ${result.run_count} executions`)
       await refresh()
-      navigate('arena')
+      navigate('runs')
     } catch (error) { notify(error.message, 'error'); throw error }
     finally { setBusy(false) }
   }
@@ -1096,7 +1076,7 @@ function App() {
   const exportExperiment = async (id) => {
     if (!id) return
     try {
-      const response = await fetch(`${API}/experiments/${id}/export`, { headers: { Authorization: `Bearer ${localStorage.getItem('rift_access_token') || ''}` } })
+      const response = await fetch(`${API}/experiments/${id}/export`)
       if (!response.ok) throw new Error('Export request failed')
       const blob = await response.blob(); const url = URL.createObjectURL(blob)
       const link = document.createElement('a'); link.href = url; link.download = `rift-${id}.csv`; link.click(); URL.revokeObjectURL(url)
@@ -1131,12 +1111,12 @@ function App() {
       {navGroups.map((group) => <div className="nav-group" key={group.label}><div className="nav-label">{group.label}</div>{group.items.map(([id, label, Icon]) => <button key={id} className={`nav-link ${page === id ? 'active' : ''}`} onClick={() => navigate(id)}><span className="nav-icon-wrap"><Icon size={17} strokeWidth={1.9} /></span><span className="nav-item-label">{label}</span>{id === 'benchmark' && <em>NEW</em>}{id === 'chaos' && <i className="nav-dot" />}</button>)}</div>)}
       <div className="sidebar-spacer" />
       <div className="sidebar-connection"><span className={`connection-led ${integrations?.bifrost?.configured && integrations?.tavily?.configured ? 'online' : ''}`} /><div><b>{integrations?.bifrost?.configured ? 'Bifrost connected' : 'Fixture mode ready'}</b><small>{integrations?.database?.type === 'neon-postgres' ? 'Neon PostgreSQL' : integrations?.database?.type ? 'Local database' : 'Checking storage'}</small></div></div>
-      <div className="sidebar-profile"><span className="profile-mark">{(session.user?.email || 'RA').slice(0, 2).toUpperCase()}</span><span><b>{session.user?.email || 'RIFT workspace'}</b><small>Private workspace</small></span><button title="Integrations and settings" onClick={() => navigate('settings')}><Settings2 size={15} /></button><button title="Sign out" onClick={signOut}><LogOut size={15}/></button></div>
+      <div className="sidebar-profile"><span className="profile-mark">R</span><span><b>Shared workspace</b><small>Single-workspace demo</small></span><button title="Integrations and settings" onClick={() => navigate('settings')}><Settings2 size={15} /></button></div>
       <button className={`sidebar-about-link ${page === 'about' ? 'active' : ''}`} onClick={() => navigate('about')}><CircleHelp size={15}/><span>About RIFT</span><ArrowUpRight size={13}/></button>
     </aside>
     {sidebarOpen && <button className="mobile-scrim" onClick={() => setSidebarOpen(false)} aria-label="Close menu" />}
     <main className="main-area">
-      <header className="topbar"><div className="topbar-left"><button className="mobile-menu" onClick={() => setSidebarOpen(true)} aria-label="Open navigation"><Menu size={18} /></button><span>RIFT</span><ChevronRight size={13} /><b>{pageTitles[page]?.[0] || 'Benchmark Lab'}</b></div><div className="topbar-right"><Badge tone={integrations?.bifrost?.configured ? 'green' : 'muted'} dot>{integrations?.bifrost?.configured ? 'Bifrost ready' : 'Fixture mode'}</Badge><button className="icon-button" onClick={refresh} title="Refresh workspace"><RefreshCw size={16} /></button><span className="top-avatar">{(session.user?.email || 'RA').slice(0, 2).toUpperCase()}</span></div></header>
+      <header className="topbar"><div className="topbar-left"><button className="mobile-menu" onClick={() => setSidebarOpen(true)} aria-label="Open navigation"><Menu size={18} /></button><span>RIFT</span><ChevronRight size={13} /><b>{pageTitles[page]?.[0] || 'Benchmark Lab'}</b></div><div className="topbar-right"><Badge tone={integrations?.bifrost?.configured ? 'green' : 'muted'} dot>{integrations?.bifrost?.configured ? 'Bifrost ready' : 'Fixture mode'}</Badge><button className="icon-button" onClick={refresh} title="Refresh workspace"><RefreshCw size={16} /></button><span className="top-avatar">R</span></div></header>
       <div className="page-root" key={page}>
         {page === 'bifrost' && <GatewayOverviewPage integrations={integrations} onNavigate={navigate} />}
         {page === 'route-lab' && <RouteLabPage initialWorkloadId={selectedGatewayWorkloadId} onWorkloadUsed={setSelectedGatewayWorkloadId} onNavigate={navigate} />}

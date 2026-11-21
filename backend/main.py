@@ -67,7 +67,7 @@ JUDGE0_RAPIDAPI_HOST = os.getenv("JUDGE0_RAPIDAPI_HOST", "").strip()
 JUDGE0_LANGUAGE_ID = int(os.getenv("JUDGE0_LANGUAGE_ID", "71"))
 JUDGE0_TIMEOUT_SECONDS = max(5, min(int(os.getenv("JUDGE0_TIMEOUT_SECONDS", "25")), 60))
 ENVIRONMENT = os.getenv("ENVIRONMENT", "development").strip().lower()
-RIFT_AUTH_REQUIRED = os.getenv("RIFT_AUTH_REQUIRED", "true").lower() in {"1", "true", "yes"}
+RIFT_AUTH_REQUIRED = os.getenv("RIFT_AUTH_REQUIRED", "false").lower() in {"1", "true", "yes"}
 RIFT_ALLOW_SIGNUP = os.getenv("RIFT_ALLOW_SIGNUP", "true").lower() in {"1", "true", "yes"}
 RIFT_AUTH_SECRET_CONFIGURED = bool(os.getenv("RIFT_AUTH_SECRET", "").strip())
 RIFT_AUTH_SECRET = os.getenv("RIFT_AUTH_SECRET", "").strip() or secrets.token_urlsafe(48)
@@ -725,7 +725,7 @@ class AgentCreate(BaseModel):
             raise ValueError("Remote adapters must use HTTPS on port 443")
         if local_dev and not RIFT_ALLOW_LOCAL_ADAPTERS:
             raise ValueError("Loopback adapters are disabled in this deployment")
-        if secure_remote and RIFT_AUTH_REQUIRED and hostname not in RIFT_ADAPTER_ALLOWED_HOSTS:
+        if secure_remote and (ENVIRONMENT == "production" or RIFT_AUTH_REQUIRED) and hostname not in RIFT_ADAPTER_ALLOWED_HOSTS:
             raise ValueError("Remote adapter host is not allowlisted. Set RIFT_ADAPTER_ALLOWED_HOSTS on the backend.")
         return endpoint
 
@@ -1254,7 +1254,7 @@ async def validate_adapter_egress(endpoint: str) -> None:
         return
     if parsed.scheme != "https" or parsed.port not in (None, 443):
         raise RuntimeError("Remote adapter egress requires HTTPS on port 443")
-    if RIFT_AUTH_REQUIRED and hostname not in RIFT_ADAPTER_ALLOWED_HOSTS:
+    if (ENVIRONMENT == "production" or RIFT_AUTH_REQUIRED) and hostname not in RIFT_ADAPTER_ALLOWED_HOSTS:
         raise RuntimeError("Adapter destination is not in RIFT_ADAPTER_ALLOWED_HOSTS")
     try:
         records = await asyncio.to_thread(socket.getaddrinfo, hostname, 443, type=socket.SOCK_STREAM)
@@ -1284,15 +1284,27 @@ async def execute_webhook_agent(agent: dict[str, Any], task: dict[str, Any], run
         "token": adapter_event_token if RIFT_PUBLIC_API_BASE_URL else None,
         "delivery": "POST {type, payload} while the agent runs; batch events in the response are also accepted",
     }
+    fault_config = run.get("faults") or {}
+    fault_severity = int(run.get("severity", 50)) / 100
+    run_seed = int(run.get("seed", 0))
     envelope = {
-        "run_id": run["id"], "task_id": task["id"],
-        "workspace_id": TENANT_CONTEXT.get() or "local",
+        "run_id": run["id"], "experiment_id": run.get("experiment_id"), "agent_id": run.get("agent_id"),
+        "task_id": task["id"], "workspace_id": TENANT_CONTEXT.get() or "local",
+        "model": run.get("model") or agent.get("model") or BIFROST_MODEL,
+        "agent": {"id": run.get("agent_id"), "name": agent.get("name"), "framework": agent.get("framework"), "strategy": agent.get("strategy")},
         "event_sink": event_sink,
         "task": {"title": task["title"], "objective": task["prompt"], "category": task.get("benchmark_category", "research"), "difficulty": task.get("difficulty")},
         "evidence": sources,
         "context": injected_context,
         "budgets": run.get("budgets") or {"max_steps": 20, "max_tool_calls": 15, "timeout_seconds": 120, "max_cost_usd": 0.10},
-        "environment": {"mode": run["mode"], "seed": run["seed"], "fault_injections": run.get("faults") or {}, "provider_fault_injected": bool(run.get("faults", {}).get("provider")) and selected(int(run.get("seed", 0)), "provider", 1, int(run.get("severity", 50)) / 100), "repetition": run.get("repetition")},
+        "environment": {
+            "mode": run["mode"], "seed": run_seed, "fault_injections": fault_config,
+            "provider_fault_injected": bool(fault_config.get("provider")) and selected(run_seed, "provider", 1, fault_severity),
+            "tool_unavailable_injected": bool(fault_config.get("tool_unavailable")) and selected(run_seed, "tool_unavailable", 1, fault_severity),
+            "misleading_instruction_injected": bool(fault_config.get("misleading_instruction")) and selected(run_seed, "misleading_instruction", 1, fault_severity),
+            "evidence_poison_injected": bool(fault_config.get("poison")) and selected(run_seed, "poison", 1, fault_severity),
+            "repetition": run.get("repetition"),
+        },
     }
     await emit_event("agent.invoke.started", {"adapter": "webhook", "endpoint_host": endpoint.split("/")[2]})
     async with httpx.AsyncClient(timeout=int((run.get("budgets") or {}).get("timeout_seconds", 120)), follow_redirects=False) as client:
@@ -1349,7 +1361,7 @@ async def execute_webhook_agent(agent: dict[str, Any], task: dict[str, Any], run
         output_tokens = event_usage_sum(("output_tokens", "completion_tokens", "tokens_out"))
     event_cost = event_usage_sum(("cost_usd", "total_cost_usd", "cost"))
     return str(output), {
-        "model": agent.get("model", "External"),
+        "model": data.get("model") or run.get("model") or agent.get("model", "External"),
         "input_tokens": input_tokens,
         "output_tokens": output_tokens,
         "steps": data.get("steps") if data.get("steps") is not None else observed_steps,
@@ -2222,10 +2234,8 @@ async def execute_experiment(experiment_id: str) -> None:
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     if os.getenv("ENVIRONMENT", ENVIRONMENT).strip().lower() == "production":
-        if not RIFT_AUTH_REQUIRED:
-            raise RuntimeError("RIFT_AUTH_REQUIRED must remain true in production deployments.")
-        if not RIFT_AUTH_SECRET_CONFIGURED:
-            raise RuntimeError("RIFT_AUTH_SECRET must be explicitly configured in production; an ephemeral signing key invalidates tokens across restarts/workers.")
+        if RIFT_AUTH_REQUIRED and not RIFT_AUTH_SECRET_CONFIGURED:
+            raise RuntimeError("RIFT_AUTH_SECRET must be explicitly configured when RIFT_AUTH_REQUIRED=true in production.")
         if not RIFT_RATE_LIMIT_REDIS_URL:
             raise RuntimeError("RIFT_RATE_LIMIT_REDIS_URL must be configured in production for shared rate limits across workers and replicas.")
         if redis_async is None:
@@ -2376,7 +2386,7 @@ def health():
         "status": "ok", "service": "rift-agent-benchmark", "version": "0.7.0",
         "database": "neon-postgres" if USE_POSTGRES else "sqlite",
         "mcp": {"enabled": MCP_SERVER is not None, "endpoint": "/mcp/" if MCP_SERVER is not None else None},
-        "security": {"authentication_required": RIFT_AUTH_REQUIRED, "signup_enabled": RIFT_ALLOW_SIGNUP, "tenant_isolation": "postgres_schema_or_sqlite_database", "adapter_host_allowlist_entries": len(RIFT_ADAPTER_ALLOWED_HOSTS), "rate_limits": "redis_shared_sliding_window" if _RATE_REDIS is not None else "per-process_ip_windows_dev_only"},
+        "security": {"authentication_required": RIFT_AUTH_REQUIRED, "access_mode": "authenticated_tenants" if RIFT_AUTH_REQUIRED else "single_shared_workspace", "public_workspace_warning": not RIFT_AUTH_REQUIRED, "signup_enabled": RIFT_ALLOW_SIGNUP if RIFT_AUTH_REQUIRED else False, "tenant_isolation": "postgres_schema_or_sqlite_database" if RIFT_AUTH_REQUIRED else "disabled_single_workspace", "adapter_host_allowlist_entries": len(RIFT_ADAPTER_ALLOWED_HOSTS), "remote_adapter_allowlist_required": ENVIRONMENT == "production" or RIFT_AUTH_REQUIRED, "rate_limits": "redis_shared_sliding_window" if _RATE_REDIS is not None else "per-process_ip_windows_dev_only"},
         "evaluation": {"judge0_configured": bool(JUDGE0_API_URL), "research_evidence_judge_configured": bool(BIFROST_BASE_URL and BIFROST_API_KEY)},
         "timestamp": now_iso(),
     }
@@ -2540,8 +2550,8 @@ async def create_experiment(body: ExperimentCreate, background_tasks: Background
         raise HTTPException(400, "Select valid benchmark tasks")
     models_for_limit = body.models or [BIFROST_MODEL or "general"]
     planned_runs = len(body.agent_ids) * len(models_for_limit) * len(body.task_ids) * body.repetitions
-    if planned_runs > 80:
-        raise HTTPException(400, "This experiment exceeds the 80-run limit. Reduce agents, models, tasks or repetitions.")
+    if planned_runs > 200:
+        raise HTTPException(400, "This experiment exceeds the 200-run limit. Reduce agents, models, tasks or repetitions.")
     selected_suites = {known_tasks[t]["suite_id"] for t in body.task_ids}
     if selected_suites != {body.suite_id}:
         raise HTTPException(400, "Selected tasks must belong to the selected benchmark suite")
@@ -2561,8 +2571,8 @@ async def create_experiment(body: ExperimentCreate, background_tasks: Background
     created = now_iso()
     models = body.models or [BIFROST_MODEL or "general"]
     run_count = len(body.agent_ids) * len(models) * len(body.task_ids) * body.repetitions
-    if run_count > 80:
-        raise HTTPException(400, "This experiment exceeds the 80-run limit. Reduce agents, models, tasks or repetitions.")
+    if run_count > 200:
+        raise HTTPException(400, "This experiment exceeds the 200-run limit. Reduce agents, models, tasks or repetitions.")
     with db() as conn:
         conn.execute(
             "INSERT INTO experiments (id,title,mode,suite_id,agent_ids,task_ids,models,evidence_mode,repetitions,severity,faults,master_seed,status,created_at,budgets) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
@@ -3096,11 +3106,11 @@ def evaluation_summary():
             if expected_n > 1 and len(ordered) >= expected_n:
                 complete.append(ordered[:expected_n])
         if not complete:
-            return {"repeated_groups": 0, "repetition_k": None, "pass_at_k_pct": None, "reliability_at_k_pct": None, "quality_stddev": None}
+            return {"repeated_groups": 0, "repetition_k": None, "pass_at_k_pct": None, "pass_power_k_pct": None, "reliability_at_k_pct": None, "repeatability_metric_note": "pass@k = at least one successful repetition; pass^k = all k repetitions successful." , "quality_stddev": None}
         pass_at_k = sum(any(bool(item["result"].get("success")) for item in group) for group in complete) / len(complete) * 100
         all_pass = sum(all(bool(item["result"].get("success")) for item in group) for group in complete) / len(complete) * 100
         spreads = [statistics.pstdev([float(item["result"].get("quality") or 0) for item in group]) for group in complete]
-        return {"repeated_groups": len(complete), "repetition_k": max(len(group) for group in complete), "pass_at_k_pct": round(pass_at_k, 1), "reliability_at_k_pct": round(all_pass, 1), "quality_stddev": round(sum(spreads) / len(spreads), 4)}
+        return {"repeated_groups": len(complete), "repetition_k": max(len(group) for group in complete), "pass_at_k_pct": round(pass_at_k, 1), "pass_power_k_pct": round(all_pass, 1), "reliability_at_k_pct": round(all_pass, 1), "repeatability_metric_note": "pass@k = at least one successful repetition; pass^k = all k repetitions successful. RIFT labels pass^k as reliability@k for readability.", "quality_stddev": round(sum(spreads) / len(spreads), 4)}
 
     by_task = [{"task_id": key, **group_summary(value), **repeatability(value)} for key, value in task_groups.items()]
     by_task.sort(key=lambda item: (item["quality_avg"] is not None, item["quality_avg"] or 0), reverse=True)
@@ -3461,7 +3471,7 @@ def integrations():
         "cost_rates_configured": bool(os.getenv("MODEL_INPUT_COST_PER_1M") and os.getenv("MODEL_OUTPUT_COST_PER_1M")),
         "tavily_cost_configured": bool(os.getenv("TAVILY_COST_PER_SEARCH")),
         "evaluation": {"judge0_configured": bool(JUDGE0_API_URL), "coding_live_enabled": bool(JUDGE0_API_URL), "research_claim_judge_configured": bool(BIFROST_BASE_URL and BIFROST_API_KEY)},
-        "security": {"authentication_required": RIFT_AUTH_REQUIRED, "signup_enabled": RIFT_ALLOW_SIGNUP, "remote_adapter_allowlist_required": RIFT_AUTH_REQUIRED, "allowed_adapter_hosts": sorted(RIFT_ADAPTER_ALLOWED_HOSTS)},
+        "security": {"authentication_required": RIFT_AUTH_REQUIRED, "signup_enabled": RIFT_ALLOW_SIGNUP, "remote_adapter_allowlist_required": ENVIRONMENT == "production" or RIFT_AUTH_REQUIRED, "allowed_adapter_hosts": sorted(RIFT_ADAPTER_ALLOWED_HOSTS)},
     }
 
 
@@ -3521,7 +3531,10 @@ def experiment_report(experiment_id: str):
     if not exp:
         raise HTTPException(404, "Experiment not found")
     groups: dict[str, dict[str, Any]] = {}
+    repeated_trials: dict[tuple[str, str, str], dict[int, bool]] = defaultdict(dict)
+    expected_k = max(1, int(exp["repetitions"] or 1))
     for row in rows:
+        repeated_trials[(row["agent_id"], row["model"], row["task_id"])][int(row["repetition"] or 0)] = bool(parse_json(row["result"], {}).get("success"))
         result = parse_json(row["result"], {})
         key = f"{row['agent_id']}::{row['model']}"
         group = groups.setdefault(key, {"agent_id": row["agent_id"], "agent": row["agent_name"], "framework": row["framework"], "model": row["model"], "runs": 0, "completed": 0, "successes": 0, "quality": [], "evidence": [], "citation_integrity": [], "latency": [], "steps": [], "tool_calls": [], "model_calls": [], "tokens": [], "costs": [], "poisoned": 0, "poison_cited": 0, "provider_faults": 0, "provider_recovered": 0, "tool_faults": 0, "tool_fault_successes": 0, "instruction_faults": 0, "instruction_fault_successes": 0})
@@ -3562,6 +3575,14 @@ def experiment_report(experiment_id: str):
             "model_calls_avg": round(statistics.mean(group["model_calls"]), 2) if group["model_calls"] else None,
             "tokens_avg": round(statistics.mean(group["tokens"])) if group["tokens"] else None,
             "cost_per_success_usd": round(sum(group["costs"]) / successful, 6) if len(group["costs"]) == n and successful else None,
+            **(lambda values: {
+                "repeated_task_groups": len(values),
+                "repetition_k": expected_k if values else None,
+                "pass_at_k_pct": round(sum(any(group_values.get(rep, False) for rep in range(1, expected_k + 1)) for group_values in values) / len(values) * 100, 1) if values else None,
+                "pass_power_k_pct": round(sum(all(group_values.get(rep, False) for rep in range(1, expected_k + 1)) for group_values in values) / len(values) * 100, 1) if values else None,
+                "reliability_at_k_pct": round(sum(all(group_values.get(rep, False) for rep in range(1, expected_k + 1)) for group_values in values) / len(values) * 100, 1) if values else None,
+            })([values for (agent_id, model, _task_id), values in repeated_trials.items() if agent_id == group["agent_id"] and model == group["model"] and all(rep in values for rep in range(1, expected_k + 1))]),
+            "repeatability_metric_note": "pass@k = at least one success in k repetitions; pass^k = all k repetitions succeed. RIFT also labels pass^k as reliability@k.",
             "poison_resistance": round((1 - group["poison_cited"] / max(group["poisoned"], 1)) * 100, 1) if group["poisoned"] else None,
             "provider_recovery": round(group["provider_recovered"] / max(group["provider_faults"], 1) * 100, 1) if group["provider_faults"] else None,
             "tool_fault_runs": group["tool_faults"],

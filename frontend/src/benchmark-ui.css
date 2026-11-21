@@ -261,3 +261,24 @@ td { color: #c3cdd2 !important; border-color: #2b343a !important; font-size: 10p
 @media (max-width: 1280px) { .chaos-grid { grid-template-columns: repeat(3,minmax(0,1fr)) !important; } .resilience-metrics { grid-template-columns: repeat(3,minmax(0,1fr)) !important; } }
 @media (max-width: 900px) { .chaos-hero { grid-template-columns: 1fr !important; } .chaos-hero-note { justify-self: start; } .chaos-grid { grid-template-columns: repeat(2,minmax(0,1fr)) !important; } .resilience-metrics { grid-template-columns: repeat(2,minmax(0,1fr)) !important; } }
 @media (max-width: 720px) { .chaos-grid { grid-template-columns: 1fr !important; } .resilience-metrics { grid-template-columns: 1fr !important; } }
+
+/* Cost/reliability Pareto view: restrained chart styling, no decorative gradients. */
+.pareto-panel { margin: 0 0 15px; padding: 18px 19px 15px; }
+.pareto-legend { display:flex; align-items:center; flex-wrap:wrap; gap:16px; margin:9px 0 0; color:#9aa5ab; font-size:9px; }
+.pareto-legend span { display:inline-flex; align-items:center; gap:6px; }
+.pareto-dot { width:8px; height:8px; display:inline-block; border-radius:50%; background:#687780; }
+.pareto-dot.frontier { background:#b7d0d9; }
+.pareto-note { margin-left:auto; color:#718087; }
+.pareto-chart-wrap { width:100%; overflow-x:auto; }
+.pareto-chart { display:block; width:100%; min-width:560px; height:auto; margin-top:7px; }
+.pareto-gridline { stroke:#303a40; stroke-width:1; }
+.pareto-gridline.vertical { stroke-dasharray:2 5; opacity:.6; }
+.pareto-axis { stroke:#68767d; stroke-width:1.1; }
+.pareto-axis-label { fill:#87949a; font-size:10px; font-family:ui-monospace,SFMono-Regular,Menlo,monospace; }
+.pareto-axis-title { fill:#aab5ba; font-size:10px; font-weight:600; }
+.pareto-frontier-line { fill:none; stroke:#b7d0d9; stroke-width:1.6; stroke-dasharray:4 4; opacity:.8; }
+.pareto-point-mark { fill:#687780; stroke:#182126; stroke-width:2; }
+.pareto-point-mark.frontier { fill:#b7d0d9; stroke:#33434b; stroke-width:2; }
+.pareto-point-label { fill:#d3dde1; font-size:10px; font-weight:600; }
+.pareto-footnote { margin-top:4px; color:#738087; font-size:9px; line-height:1.55; }
+@media(max-width:720px) { .pareto-panel { padding:14px; } .pareto-note { margin-left:0; width:100%; } }
