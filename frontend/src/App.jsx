@@ -9,8 +9,6 @@ import {
   Fingerprint, Bug, FilePlus2, ScanSearch, History, Route, FileUp, CircleDollarSign, CheckCircle2, AlertCircle, Scale, GaugeCircle, Clock, Upload, Layers,
 } from 'lucide-react'
 import Arena3D from './components/Arena3D.jsx'
-import RunDock from './components/RunDock.jsx'
-import ArenaLab from './components/ArenaLab.jsx'
 
 const API = (import.meta.env.VITE_API_BASE_URL || '/api').replace(/\/$/, '')
 const API_URL = new URL(API, window.location.origin)
@@ -22,37 +20,36 @@ const navGroups = [
     ['compare', 'Compare experiments', GitCompareArrows], ['runs', 'Run inspector', Activity],
   ] },
   { label: 'Reliability', items: [
-    ['chaos', 'Chaos lab', ShieldEllipsis], ['counterfactuals', 'Failure analysis', ScanSearch],
+    ['chaos', 'Fault testing', ShieldEllipsis], ['counterfactuals', 'Failure analysis', ScanSearch],
     ['regression', 'Regression suite', History],
   ] },
   { label: 'Results', items: [
     ['evaluation', 'Evaluation reports', FileBarChart], ['leaderboard', 'Leaderboard', Trophy],
   ] },
-  { label: 'Appendix', items: [
-    ['arena', '3D Arena', Network], ['bifrost', 'Bifrost gateway', Gauge],
+  { label: 'Integrations', items: [
+    ['arena', 'Execution replay', Network], ['bifrost', 'Bifrost gateway', Gauge],
     ['traffic', 'Request datasets', Database], ['research', 'Research snapshots', Globe2],
     ['mcp', 'Tool dependency monitor', Fingerprint], ['settings', 'Integrations & settings', Settings2],
   ] },
 ]
 const pageTitles = {
-  overview: ['Workspace', 'Agent benchmark activity at a glance.'],
-  benchmark: ['Agent Benchmark Lab', 'Run matched trials on any agent and compare them.'],
-  agents: ['Agent registry', 'Connect any agent through one HTTP contract.'],
-  research: ['Research snapshots', 'Evidence pinned for research tasks.'],
-  runs: ['Run Inspector', 'Every step, tool call and failure.'],
-  mcp: ['Tool dependency monitor', 'Track tool-server changes.'],
-  counterfactuals: ['Failure analysis', 'Remove one fault at a time and compare.'],
-  regression: ['Regression suite', 'Replay saved failures on new agent versions.'],
-  chaos: ['Chaos lab', 'Inject outages, bad tools and hostile instructions.'],
-  arena: ['3D Arena', 'Watch agent events play out live.'],
-  evaluation: ['Evaluation reports', 'Success, repeatability, cost and resilience.'],
-  compare: ['Compare', 'See why one configuration wins.'],
-  leaderboard: ['Leaderboard', 'Agents ranked by measured results.'],
-  settings: ['Integrations & settings', 'Bifrost, Tavily and storage.'],
-  about: ['About RIFT', 'Architecture and project information.'],
-  bifrost: ['Bifrost gateway', 'Optional gateway integration.'],
-  'route-lab': ['Route lab', 'Compare model routes on one workload.'],
-  traffic: ['Traffic replay', 'Reusable request workloads.'],
+  overview: ['Workspace', 'A clear view of agent benchmark activity and reliability.'],
+  benchmark: ['Agent Benchmark Lab', 'Compare complete agent configurations at task level across matched trials and controlled failures.'],
+  agents: ['Agent registry', 'Connect agents built with any framework through one stable HTTP contract.'],
+  research: ['Research snapshots', 'Inspect and pin evidence used by research-category tasks.'],
+  runs: ['Run Inspector', 'Every observable action, result and failure.'],
+  mcp: ['Tool dependency monitor', 'Optional manifest history and drift detection for connected tool servers.'],
+  counterfactuals: ['Failure analysis', 'Remove one injected condition at a time and compare the resulting agent runs.'],
+  regression: ['Regression suite', 'Preserve important failures and replay them against new agent versions.'],
+  chaos: ['Fault testing', 'Inject provider, tool, latency and instruction failures into matched trials.'],
+  arena: ['Execution replay', 'Replay observable agent events in sequence and inspect each run.'],
+  evaluation: ['Evaluation reports', 'Measure task success, repeatability, efficiency and resilience.'],
+  compare: ['Compare', 'Understand what makes one configuration perform better.'],
+  leaderboard: ['Leaderboard', 'Rank configurations by verified performance.'],
+  settings: ['Integrations & settings', 'Configure Bifrost, live research and persistent storage.'],
+  bifrost: ['Bifrost gateway', 'Optional gateway integration for model requests and route-level comparisons.'],
+  'route-lab': ['Route lab', 'Compare Bifrost model routes on a shared request workload.'],
+  traffic: ['Traffic replay', 'Build a reusable workload from representative production requests.'],
 }
 const defaultConfig = {
   title: 'Coding-10 agent benchmark', mode: 'demo', evidenceMode: 'snapshot', suiteId: 'coding-10',
@@ -98,10 +95,6 @@ function PageHeading({ page, eyebrow = 'RIFT / WORKSPACE', action }) {
 function StatCard({ icon: Icon, label, value, detail, accent = 'blue', trend }) {
   return <Panel className={`stat-card stat-${accent}`}><div className="stat-top"><span>{label}</span><span className="stat-icon"><Icon size={18} /></span></div><div className="stat-value">{value ?? '—'}</div><div className="stat-bottom"><span>{detail}</span>{trend && <Badge tone="green"><ArrowUpRight size={11} />{trend}</Badge>}</div></Panel>
 }
-function MiniBars({ values = [18, 24, 16, 35, 28, 50, 43, 62, 55, 72, 64, 84] }) {
-  const max = Math.max(...values, 1)
-  return <div className="mini-bars">{values.map((v, i) => <span key={i} style={{ height: `${Math.max(7, v / max * 100)}%`, opacity: 0.45 + (i / values.length) * 0.55 }} />)}</div>
-}
 function EmptyState({ icon: Icon = Sparkles, title, detail, action }) {
   return <div className="empty-state"><span className="empty-icon"><Icon size={22} /></span><h3>{title}</h3><p>{detail}</p>{action}</div>
 }
@@ -109,41 +102,7 @@ function Switch({ checked, onChange }) {
   return <button type="button" className={`switch ${checked ? 'is-on' : ''}`} aria-pressed={checked} onClick={() => onChange(!checked)}><span /></button>
 }
 function Field({ label, hint, children }) { return <label className="field"><span>{label}</span>{children}{hint && <small>{hint}</small>}</label> }
-function SectionLabel({ children, aside }) { return <div className="section-label"><h2>{children}</h2>{aside && <span>{aside}</span>}</div> }
 function ProgressBar({ value = 0, color = 'blue' }) { return <div className={`progress progress-${color}`}><span style={{ width: `${Math.max(0, Math.min(100, value))}%` }} /></div> }
-
-function OverviewPage({ data, onNavigate, onStart }) {
-  const recent = data.experiments.slice(0, 6)
-  const o = data.overview || {}
-  const signals = [
-    { label: 'MCP manifests', value: 'Open', detail: 'Tracked endpoints', target: 'mcp', icon: Fingerprint },
-    { label: 'Saved regressions', value: 'Open', detail: 'Replayable failure cases', target: 'regression', icon: History },
-    { label: 'Failure analyses', value: 'Open', detail: 'Controlled comparisons', target: 'counterfactuals', icon: ScanSearch },
-  ]
-  return <>
-    <PageHeading page="overview" action={<Button icon={Plus} onClick={() => onNavigate('benchmark')}>New benchmark</Button>} />
-    <div className="workspace-intro-row">
-      <div><div className="eyebrow">OPERATIONS</div><h2>Research workspace</h2><p>Review recent executions and continue reliability work.</p></div>
-      <div className="workspace-intro-actions"><Button variant="secondary" icon={Fingerprint} onClick={() => onNavigate('mcp')}>Monitor MCP server</Button><Button variant="secondary" icon={History} onClick={() => onNavigate('regression')}>Open regressions</Button></div>
-    </div>
-    <div className="stats-grid">
-      <StatCard icon={FlaskConical} label="Experiments" value={number(o.experiments)} detail="Saved benchmark sessions" accent="blue" />
-      <StatCard icon={Activity} label="Completed runs" value={number(o.completed)} detail={`${number(o.failed)} failed executions`} accent="violet" />
-      <StatCard icon={Gauge} label="Average quality" value={o.avg_quality == null ? '—' : `${o.avg_quality}%`} detail="Across evaluated runs" accent="cyan" />
-      <StatCard icon={ShieldCheck} label="Task success" value={percent(o.success_rate)} detail="Recorded task outcomes" accent="green" />
-    </div>
-    <div className="workspace-lower-grid">
-      <Panel className="table-panel workspace-recent-panel">
-        <PanelHeading title="Recent experiments" detail="Latest benchmark activity" action={<Button size="sm" variant="secondary" onClick={() => onNavigate('runs')}>Run inspector <ArrowRight size={13}/></Button>} />
-        {recent.length ? <div className="table-scroll"><table><thead><tr><th>Experiment</th><th>Mode</th><th>Runs</th><th>Status</th><th>Created</th><th /></tr></thead><tbody>{recent.map((exp) => <tr key={exp.id}><td><b>{exp.title}</b><small className="mono">{short(exp.id)}</small></td><td><Badge tone={exp.mode === 'live' ? 'green' : 'muted'}>{exp.mode === 'live' ? 'Live' : 'Demo'}</Badge></td><td>{(exp.agent_ids || []).length * (exp.models || []).length * (exp.task_ids || []).length * exp.repetitions}</td><td><Badge tone={toneForStatus(exp.status)} dot>{exp.status}</Badge></td><td>{relativeTime(exp.created_at)}</td><td><button className="icon-button small" onClick={() => onStart(exp.id)} aria-label="Open experiment"><ArrowUpRight size={15} /></button></td></tr>)}</tbody></table></div> : <EmptyState title="No experiments recorded" detail="Run a benchmark to start collecting comparable agent executions." action={<Button onClick={() => onNavigate('benchmark')}>Create benchmark</Button>} />}
-      </Panel>
-      <div className="workspace-quick-stack">
-        <Panel className="workspace-quick-panel"><PanelHeading title="Reliability tools" detail="Continue from recorded evidence" />{signals.map(({ label, value, detail, target, icon: Icon }) => <button key={target} className="workspace-quick-link" onClick={() => onNavigate(target)}><span><Icon size={17}/></span><div><b>{label}</b><small>{detail}</small></div><strong>{value}</strong><ArrowRight size={14}/></button>)}</Panel>
-        <Panel className="workspace-note"><div className="eyebrow">WORKING PRINCIPLE</div><p>Every comparison should preserve the task, configuration, evidence and trace needed to reproduce the result.</p><button onClick={() => onNavigate('about')}>RIFT architecture <ArrowUpRight size={13}/></button></Panel>
-      </div>
-    </div>
-  </>
-}
 
 function BenchmarkPage({ agents, tasks, onLaunch, busy }) {
   const [config, setConfig] = useState(defaultConfig)
@@ -184,10 +143,6 @@ function BenchmarkPage({ agents, tasks, onLaunch, busy }) {
   }
   return <>
     <PageHeading page="benchmark" action={<Badge tone="green">Framework independent</Badge>} />
-    <div className="benchmark-thesis-strip">
-      <div><span className="eyebrow">TASK-LEVEL BENCHMARKING / COMPLETE AGENT CONFIGURATIONS</span><h2>Same task. Same conditions. <em>Different agents.</em></h2><p>Compare complete agent configurations, including prompts, tools, memory and retry behaviour, against identical task-level workloads rather than isolated model responses.</p></div>
-      <div className="benchmark-thesis-meta"><span><b>30</b><small>benchmark tasks</small></span><span><b>3</b><small>task categories</small></span><span><b>5×</b><small>repeat trials</small></span></div>
-    </div>
     <div className="benchmark-layout">
       <div className="benchmark-main">
         <Panel className="form-panel"><PanelHeading title="Experiment setup" detail="Select a benchmark suite and RIFT keeps each chosen task matched across agents." /><div className="form-grid">
@@ -205,8 +160,7 @@ function BenchmarkPage({ agents, tasks, onLaunch, busy }) {
       <aside className="benchmark-side">
         <Panel className="side-panel"><PanelHeading title="Trial protocol" detail="Control repeatability and injected conditions."/><div className="field-stack"><Field label={`Repeated trials · ${config.repetitions}×`}><input type="range" min="1" max="5" value={config.repetitions} onChange={(e) => update('repetitions', Number(e.target.value))} /></Field><div className="repetition-scale"><span>1</span><span>2</span><span>3</span><span>4</span><span>5</span></div><Field label="Master seed"><input type="number" value={config.masterSeed} onChange={(e) => update('masterSeed', Number(e.target.value))} /></Field><Field label={`Fault severity · ${config.severity}%`}><input type="range" min="0" max="100" step="5" value={config.severity} onChange={(e) => update('severity', Number(e.target.value))} /></Field></div><div className="divider"/><div className="field-stack"><div className="mini-heading">Fault profile</div>{[
           ['provider','Provider outage','Simulate an unavailable primary model route.'],['tool_unavailable','Broken tool','Make a required tool unavailable to the agent.'],['misleading_instruction','Misleading instruction','Add hostile instructions as untrusted task context.'],['poison','Evidence poisoning','Add adversarial evidence to research tasks.'],['latency','Network latency','Delay the task context or research tool response.'],
-        ].map(([key, title, detail]) => <div className="switch-row" key={key}><div><b>{title}</b><small>{detail}</small></div><Switch checked={Boolean(config.faults[key])} onChange={(value) => toggleFault(key, value)} /></div>)}</div><div className="divider"/><div className="run-estimate"><span>Planned agent executions</span><b>{runCount}</b><small>{config.agentIds.length} agents · {config.taskIds.length} tasks · {config.repetitions} trials</small></div>{formError && <div className="form-error">{formError}</div>}<Button className="full-button" icon={Play} disabled={busy || suiteLoading} onClick={launch}>{busy ? 'Launching benchmark…' : 'Run benchmark'}</Button><p className="side-footnote">Demo mode runs offline. Live mode uses Bifrost (and Tavily for research).</p></Panel>
-        <Panel className="callout-panel"><div className="callout-symbol"><ShieldCheck size={19}/></div><b>Matched evaluation</b><p>Every selected agent receives identical task versions, repetition seeds, evidence snapshots and budgets. Actual provider usage is kept separate from fixture data.</p></Panel>
+        ].map(([key, title, detail]) => <div className="switch-row" key={key}><div><b>{title}</b><small>{detail}</small></div><Switch checked={Boolean(config.faults[key])} onChange={(value) => toggleFault(key, value)} /></div>)}</div><div className="divider"/><div className="run-estimate"><span>Planned agent executions</span><b>{runCount}</b><small>{config.agentIds.length} agents · {config.taskIds.length} tasks · {config.repetitions} trials</small></div>{formError && <div className="form-error">{formError}</div>}<Button className="full-button" icon={Play} disabled={busy || suiteLoading} onClick={launch}>{busy ? 'Launching benchmark…' : 'Run benchmark'}</Button><p className="side-footnote">Fixture mode is fully offline. Live mode uses Bifrost for built-in model calls and Tavily only for research tasks. External adapters receive the fault protocol in their request envelope.</p></Panel>
       </aside>
     </div>
   </>
@@ -345,11 +299,15 @@ function EventItem({ event, active = false }) {
 }
 
 function ArenaPage({ experiment, events, runs, activeFault, onReplay, onPause, paused, onNavigate, replayMode = false, replayCursor = 0, replayTotal = 0, onReplaySeek }) {
+  const faultCount = events.filter((e) => /failed|fault|poison|latency/.test(e.event_type || '')).length
+  const currentRun = experiment?.runs?.find((r) => r.status === 'running') || experiment?.runs?.[experiment.runs.length - 1]
   return <>
     <PageHeading page="arena" action={<div className="arena-toolbar"><Badge tone={experiment ? 'green' : 'muted'} dot>{experiment ? experiment.status : 'Awaiting run'}</Badge><Button variant="secondary" size="sm" icon={RefreshCw} onClick={onReplay}>Replay run</Button></div>} />
-    <ArenaLab experiment={experiment} events={events} paused={paused} onPause={onPause} onReplay={onReplay} onNavigate={onNavigate} replayMode={replayMode} replayCursor={replayCursor} replayTotal={replayTotal} onReplaySeek={onReplaySeek} activeFault={activeFault} />
-    <Panel className="event-panel arena-stream"><PanelHeading title="Execution stream" detail="Recorded backend events" action={<Badge tone="blue">{events.length}</Badge>} /><div className="event-list">{events.slice(-12).reverse().map((event, i) => <EventItem key={event.id || `${event.sequence}-${i}`} event={event} active={i === 0} />)}{!events.length && <EmptyState title="No events yet" detail="Run a benchmark to stream live events." />}</div></Panel>
-    {experiment && <Panel className="recent-run-panel"><PanelHeading title="Experiment runs" detail={`${(experiment.runs || []).length} executions`} action={<Button size="sm" variant="secondary" onClick={() => onNavigate('runs')}>Open inspector <ArrowRight size={14} /></Button>} /></Panel>}
+    <div className="arena-header-strip"><div><span className="eyebrow">RIFT DIGITAL TWIN</span><b>{experiment?.title || 'Simulation environment'}</b><small>{experiment ? `${experiment.runs?.length || 0} executions · ${events.length} captured events` : 'Launch a benchmark to see agents move through the research network.'}</small></div><div className="arena-readouts"><div><span>Events</span><b>{events.length}</b></div><div><span>Faults</span><b className="text-red">{faultCount}</b></div><div><span>Current run</span><b>{currentRun ? short(currentRun.id) : '—'}</b></div></div></div>
+    <div className="arena-layout"><div className="arena-main"><div className="arena-stage"><div className="arena-stage-top"><div className="stage-legend"><span><i className="legend-model" /> Bifrost</span><span><i className="legend-research" /> Tavily</span><span><i className="legend-agent" /> Agents</span><span><i className="legend-fault" /> Faults</span></div><Badge tone={replayMode ? 'violet' : 'green'} dot>{replayMode ? 'Recorded replay' : 'Live event stream'}</Badge></div><Arena3D events={events} fault={activeFault} paused={paused} /><div className="arena-stage-bottom"><div><span className="live-pulse" /> {replayMode ? 'RECORDED EXECUTION' : 'REAL-TIME EXECUTION'}</div><div className="stage-controls"><button onClick={onPause}>{paused ? <Play size={14} /> : <Pause size={14} />}{paused ? 'Resume' : 'Pause'}</button><button onClick={onReplay}><RefreshCw size={14} /> Replay</button></div></div>{replayMode && <div className="replay-scrubber"><span>{replayCursor} / {replayTotal} events</span><input aria-label="Replay position" type="range" min="0" max={Math.max(1, replayTotal)} value={Math.min(replayCursor, replayTotal)} onChange={(e) => onReplaySeek?.(Number(e.target.value))} /><span>{replayTotal ? `${Math.round(replayCursor / replayTotal * 100)}%` : '0%'}</span></div>}</div><div className="arena-run-strip"><div><span>Active experiment</span><b>{experiment?.id || 'No experiment selected'}</b></div><div><span>Evidence mode</span><b>{experiment?.evidence_mode || 'Snapshot'}</b></div><div><span>Fault severity</span><b>{experiment?.severity ?? 0}%</b></div><div><span>Master seed</span><b>{experiment?.master_seed ?? '—'}</b></div></div></div>
+      <Panel className="event-panel"><PanelHeading title="Execution stream" detail="Recorded backend events" action={<Badge tone="blue">{events.length}</Badge>} /><div className="event-list">{events.slice(-16).reverse().map((event, i) => <EventItem key={event.id || `${event.sequence}-${i}`} event={event} active={i === 0} />)}{!events.length && <EmptyState icon={Radio} title="Waiting for execution" detail="Launch a benchmark to stream agent, model and tool events." action={<Button size="sm" onClick={() => onNavigate('benchmark')}>Open Benchmark Lab</Button>} />}</div></Panel>
+    </div>
+    {experiment && <Panel className="recent-run-panel"><PanelHeading title="Experiment runs" detail="Select a run to inspect the full trace." action={<Button size="sm" variant="secondary" onClick={() => onNavigate('runs')}>Open inspector <ArrowRight size={14} /></Button>} /><div className="run-chip-row">{(experiment.runs || []).slice(0, 8).map((run) => <div className="run-chip" key={run.id}><span className={`tiny-status ${toneForStatus(run.status)}`} /><b>{short(run.agent_id)}</b><small>{run.task_id}</small><Badge tone={toneForStatus(run.status)}>{run.status}</Badge></div>)}</div></Panel>}
   </>
 }
 
@@ -445,7 +403,7 @@ function ParetoChart({ results }) {
     other !== point && other.cost <= point.cost && other.reliability >= point.reliability &&
     (other.cost < point.cost || other.reliability > point.reliability)
   )).sort((a, b) => a.cost - b.cost)
-  if (!points.length) return <Panel className="pareto-panel"><PanelHeading title="Cost vs reliability frontier" detail="Cost per success vs pass^k."/><EmptyState icon={GitCompareArrows} title="Not enough measured data" detail="Run each agent at least twice and set model pricing to see this chart." /></Panel>
+  if (!points.length) return <Panel className="pareto-panel"><PanelHeading title="Cost vs reliability frontier" detail="Efficiency is meaningful only when provider-reported costs and complete repeated trials are available."/><EmptyState icon={GitCompareArrows} title="Not enough measured data" detail="Run the same tasks for each agent with at least two repetitions and configure provider pricing or verified per-run cost reporting. The chart will plot cost per verified success against pass^k." /></Panel>
   const W = 760, H = 310, L = 68, R = 24, T = 20, B = 48
   const innerW = W - L - R, innerH = H - T - B
   const maxCost = Math.max(...points.map((point) => point.cost), 0.000001)
@@ -470,7 +428,7 @@ function ParetoChart({ results }) {
         {points.map((point) => <g key={`${point.agent_id}-${point.model}`} className="pareto-point"><title>{`${point.agent} · ${point.model}\nCost / success: $${point.cost.toFixed(6)}\npass^k: ${point.reliability}%\nk=${point.repetition_k}`}</title><circle cx={x(point.cost)} cy={y(point.reliability)} r={frontier.includes(point) ? 7 : 5} className={frontier.includes(point) ? 'pareto-point-mark frontier' : 'pareto-point-mark'}/><text x={x(point.cost)+10} y={y(point.reliability)-10} className="pareto-point-label">{point.agent}</text></g>)}
       </svg>
     </div>
-    <div className="pareto-footnote">Only fully priced, fully repeated configurations are plotted.</div>
+    <div className="pareto-footnote">Only configurations with complete pricing and complete repeated task groups are plotted. pass^k is the fraction of task/configuration groups where every one of the k repetitions succeeds. RIFT previously labelled this reliability@k; pass^k is the clearer mathematical name.</div>
   </Panel>
 }
 
@@ -913,13 +871,6 @@ function TrafficReplayPage({ onNavigate, onSelectWorkload }) {
   </>
 }
 
-function AboutPage() {
-  return <>
-    <PageHeading page="about" />
-    <div className="about-layout"><Panel className="about-main"><div className="eyebrow">RIFT / ENGINEERING NOTES</div><h2>Task-level benchmarks for complete agent configurations.</h2><p>RIFT compares complete agents at task level across identical workloads and repeated trials. It combines task outcomes with observed steps, tool calls, model usage, cost and latency, then tests how those agents behave when dependencies fail. Bifrost is an optional telemetry source, not the product centre.</p><div className="about-pill-row"><Badge tone="muted">Bifrost</Badge><Badge tone="muted">FastAPI</Badge><Badge tone="muted">React</Badge><Badge tone="muted">SQLite / Neon</Badge><Badge tone="muted">OpenAI-compatible API</Badge></div></Panel><div className="about-capabilities">{[[FlaskConical,'Task-level evaluation','Matched tasks, repeated trials and agent configuration comparisons.'],[Scale,'Counterfactual analysis','Trace-derived hypotheses with controlled one-variable reruns.'],[History,'Regression memory','Saved failure cases with preserved seed and evidence snapshots.'],[Fingerprint,'Optional integrations','Gateway correlation and MCP monitoring remain supporting tools, not the core product.']].map(([Icon,title,detail]) => <Panel className="about-capability" key={title}><Icon size={18}/><div><b>{title}</b><p>{detail}</p></div></Panel>)}</div></div>
-  </>
-}
-
 function App() {
   const [page, setPage] = useState('benchmark')
   const [selectedGatewayWorkloadId, setSelectedGatewayWorkloadId] = useState('')
@@ -934,16 +885,6 @@ function App() {
   const [selectedRun, setSelectedRun] = useState(null)
   const [activeExperimentId, setActiveExperimentId] = useState('')
   const [activeExperiment, setActiveExperiment] = useState(null)
-  const [plannedRuns, setPlannedRuns] = useState(0)
-  const [finishedReport, setFinishedReport] = useState(null)
-  useEffect(() => {
-    const id = activeExperiment?.id
-    const st = activeExperiment?.status
-    if (!id || !st || ['running', 'queued'].includes(st)) { setFinishedReport(null); return }
-    let live = true
-    api(`/experiments/${id}/report`).then((d) => { if (live) setFinishedReport(d) }).catch(() => {})
-    return () => { live = false }
-  }, [activeExperiment?.id, activeExperiment?.status])
   const [arenaEvents, setArenaEvents] = useState([])
   const [replayEvents, setReplayEvents] = useState([])
   const [replayCursor, setReplayCursor] = useState(0)
@@ -1036,10 +977,9 @@ function App() {
     try {
       const result = await api('/experiments', { method: 'POST', body: JSON.stringify(payload) })
       setReplayMode(false); setReplayEvents([]); setReplayCursor(0); setActiveExperimentId(result.experiment_id); setActiveExperiment({ id: result.experiment_id, title: payload.title, status: 'running', runs: [] }); setArenaEvents([]); setActiveFault('none')
-      setPlannedRuns(result.run_count || 0)
       notify(`Experiment launched · ${result.run_count} executions`)
       await refresh()
-      navigate('arena')
+      navigate('runs')
     } catch (error) { notify(error.message, 'error'); throw error }
     finally { setBusy(false) }
   }
@@ -1116,17 +1056,13 @@ function App() {
   return <div className="app-shell">
     <aside className={`sidebar ${sidebarOpen ? 'sidebar-open' : ''}`}>
       <button className="brand" onClick={() => navigate('benchmark')}><span className="brand-symbol"><i /><i /><i /></span><span><strong>RIFT</strong><small>AGENT BENCHMARKS</small></span></button>
-      <div className="workspace-select"><span className="workspace-avatar">R</span><span><b>Benchmark workspace</b><small>Framework independent</small></span><ChevronDown size={14} /></div>
       {navGroups.map((group) => <div className="nav-group" key={group.label}><div className="nav-label">{group.label}</div>{group.items.map(([id, label, Icon]) => <button key={id} className={`nav-link ${page === id ? 'active' : ''}`} onClick={() => navigate(id)}><span className="nav-icon-wrap"><Icon size={17} strokeWidth={1.9} /></span><span className="nav-item-label">{label}</span>{id === 'benchmark' && <em>NEW</em>}{id === 'chaos' && <i className="nav-dot" />}</button>)}</div>)}
       <div className="sidebar-spacer" />
       <div className="sidebar-connection"><span className={`connection-led ${integrations?.bifrost?.configured && integrations?.tavily?.configured ? 'online' : ''}`} /><div><b>{integrations?.bifrost?.configured ? 'Bifrost connected' : 'Fixture mode ready'}</b><small>{integrations?.database?.type === 'neon-postgres' ? 'Neon PostgreSQL' : integrations?.database?.type ? 'Local database' : 'Checking storage'}</small></div></div>
-      <div className="sidebar-profile"><span className="profile-mark">R</span><span><b>Shared workspace</b><small>Single-workspace demo</small></span><button title="Integrations and settings" onClick={() => navigate('settings')}><Settings2 size={15} /></button></div>
-      <button className={`sidebar-about-link ${page === 'about' ? 'active' : ''}`} onClick={() => navigate('about')}><CircleHelp size={15}/><span>About RIFT</span><ArrowUpRight size={13}/></button>
     </aside>
     {sidebarOpen && <button className="mobile-scrim" onClick={() => setSidebarOpen(false)} aria-label="Close menu" />}
     <main className="main-area">
-      <header className="topbar"><div className="topbar-left"><button className="mobile-menu" onClick={() => setSidebarOpen(true)} aria-label="Open navigation"><Menu size={18} /></button><span>RIFT</span><ChevronRight size={13} /><b>{pageTitles[page]?.[0] || 'Benchmark Lab'}</b></div><div className="topbar-right"><Badge tone={integrations?.bifrost?.configured ? 'green' : 'muted'} dot>{integrations?.bifrost?.configured ? 'Bifrost ready' : 'Fixture mode'}</Badge><button className="icon-button" onClick={refresh} title="Refresh workspace"><RefreshCw size={16} /></button><span className="top-avatar">R</span></div></header>
-      <RunDock busy={busy} experiment={activeExperiment} planned={plannedRuns} report={finishedReport} onNavigate={navigate} />
+      <header className="topbar"><div className="topbar-left"><button className="mobile-menu" onClick={() => setSidebarOpen(true)} aria-label="Open navigation"><Menu size={18} /></button><span>RIFT</span><ChevronRight size={13} /><b>{pageTitles[page]?.[0] || 'Benchmark Lab'}</b></div><div className="topbar-right"><Badge tone={integrations?.bifrost?.configured ? 'green' : 'muted'} dot>{integrations?.bifrost?.configured ? 'Bifrost ready' : 'Fixture mode'}</Badge><button className="icon-button" onClick={refresh} title="Refresh workspace"><RefreshCw size={16} /></button></div></header>
       <div className="page-root" key={page}>
         {page === 'bifrost' && <GatewayOverviewPage integrations={integrations} onNavigate={navigate} />}
         {page === 'route-lab' && <RouteLabPage initialWorkloadId={selectedGatewayWorkloadId} onWorkloadUsed={setSelectedGatewayWorkloadId} onNavigate={navigate} />}
@@ -1144,7 +1080,6 @@ function App() {
         {page === 'compare' && <ComparePage experiments={experiments} />}
         {page === 'leaderboard' && <LeaderboardPage entries={leaderboard} onRefresh={refresh} />}
         {page === 'settings' && <SettingsPage integrations={integrations} onTest={testIntegrations} checking={checking} health={health} />}
-        {page === 'about' && <AboutPage />}
       </div>
     </main>
     {toast && <div className={`toast toast-${toast.kind}`}><span>{toast.kind === 'error' ? <AlertTriangle size={15} /> : <Check size={15} />}</span>{toast.message}<button onClick={() => setToast(null)}><X size={14} /></button></div>}
