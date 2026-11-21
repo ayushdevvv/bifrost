@@ -37,3 +37,32 @@ button:not(:disabled):active { transform: scale(.975); }
 .run-dock-open { margin-top:13px; width:100%; display:flex; align-items:center; justify-content:center; gap:6px; padding:9px; border-radius:11px; border:1px solid var(--rift-line); background: rgba(127,212,255,.09); color:#e8f1ff; font-size:12px; cursor:pointer } .run-dock-open:hover { background: rgba(127,212,255,.18) }
 @media (max-width:640px) { .run-dock { left:12px; right:12px; width:auto; bottom:12px } }
 @media (prefers-reduced-motion: reduce) { *, ::before, ::after { animation-duration:.01ms !important; animation-iteration-count:1 !important } }
+
+/* 3D Execution Arena HUD */
+.a3d-lab { margin-bottom:16px }
+.a3d-head { display:flex; justify-content:space-between; align-items:flex-end; margin-bottom:12px }
+.a3d-eyebrow { font:10px 'DM Mono',monospace; letter-spacing:.16em; color:#22d3ee } .a3d-head h2 { margin:6px 0 0; font-size:30px; letter-spacing:-.04em }
+.a3d-toggle { display:flex; padding:3px; border:1px solid rgba(34,211,238,.25); border-radius:10px; background:rgba(4,16,26,.8) }
+.a3d-toggle button { padding:7px 14px; border:0; border-radius:8px; background:none; color:#8aa8b8; font-size:11px; cursor:pointer } .a3d-toggle .on { background:rgba(34,211,238,.16); color:#67e8f9 }
+.a3d-stage { position:relative; height:680px; overflow:hidden; border:1px solid rgba(34,211,238,.28); border-radius:18px; background:#030b14; box-shadow:0 30px 90px -30px rgba(14,165,183,.55), inset 0 0 80px rgba(14,165,183,.08) }
+.a3d-stage .arena-canvas { position:absolute; inset:0 }
+.a3d-stage > div:not(.arena-canvas), .a3d-stage > aside { position:absolute; z-index:3; background:rgba(4,16,26,.78); backdrop-filter:blur(14px); border:1px solid rgba(34,211,238,.2); border-radius:12px }
+.a3d-stage small { display:block; font:8px 'DM Mono',monospace; letter-spacing:.14em; color:#5aa6b8; text-transform:uppercase }
+.a3d-scen { top:16px; left:16px; width:176px; padding:12px } .a3d-scen small { margin-bottom:8px }
+.a3d-scen button { display:flex; gap:9px; width:100%; padding:8px 6px; border:0; border-left:2px solid transparent; background:none; color:#8aa8b8; font-size:11px; text-align:left; cursor:pointer }
+.a3d-scen button i { font:normal 8px 'DM Mono',monospace; color:#3d7f92; padding-top:2px } .a3d-scen .on { color:#e6f6ff; border-left-color:#22d3ee; background:rgba(34,211,238,.1) }
+.a3d-metrics { top:16px; left:208px; right:300px; display:grid; grid-template-columns:repeat(6,1fr); overflow:hidden }
+.a3d-metrics div { padding:10px 14px; border-right:1px solid rgba(34,211,238,.12) } .a3d-metrics div:last-child { border:0 } .a3d-metrics b { display:block; margin-top:5px; font-size:16px; color:#e6f6ff }
+.a3d-inspector { top:16px; right:16px; width:260px; padding:16px } .a3d-inspector h3 { margin:12px 0 8px; font-size:16px } .a3d-x { position:absolute; top:10px; right:10px; border:0; background:none; color:#8aa8b8; cursor:pointer }
+.a3d-node-icon { width:42px; height:42px; margin-top:12px; display:grid; place-items:center; border:1px solid rgba(34,211,238,.4); border-radius:10px; color:#22d3ee; background:rgba(34,211,238,.1) }
+.a3d-state { font:9px 'DM Mono',monospace; letter-spacing:.1em } .a3d-state.ok { color:#34d399 } .a3d-state.warn { color:#fbbf24 } .a3d-state.bad { color:#fb7185 } .a3d-state.poison { color:#c084fc }
+.a3d-inspector dl { display:grid; grid-template-columns:1fr auto; gap:0; margin:14px 0 } .a3d-inspector dt, .a3d-inspector dd { margin:0; padding:9px 0; border-bottom:1px solid rgba(34,211,238,.1); font-size:11px } .a3d-inspector dt { color:#8aa8b8 } .a3d-inspector dd { text-align:right; color:#e6f6ff }
+.a3d-trace { width:100%; display:flex; justify-content:center; gap:7px; padding:10px; border:1px solid rgba(34,211,238,.3); border-radius:9px; background:rgba(34,211,238,.1); color:#a5f3fc; font-size:11px; cursor:pointer }
+.a3d-step { left:16px; bottom:78px; width:300px; padding:14px 16px } .a3d-step b { display:block; margin:7px 0 5px; font-size:15px; text-transform:capitalize } .a3d-step p { margin:0; font-size:10px; color:#8aa8b8; line-height:1.5; overflow-wrap:anywhere }
+.a3d-timeline { left:16px; right:16px; bottom:16px; display:flex; align-items:center; gap:12px; padding:10px 14px; color:#8aa8b8; font:10px 'DM Mono',monospace }
+.a3d-timeline button { width:32px; height:32px; display:grid; place-items:center; border:1px solid rgba(34,211,238,.4); border-radius:50%; background:rgba(34,211,238,.1); color:#67e8f9; cursor:pointer }
+.a3d-timeline input { flex:1; accent-color:#22d3ee } .a3d-bar { flex:1; height:4px; border-radius:4px; background:rgba(34,211,238,.15) } .a3d-bar i { display:block; height:100%; border-radius:4px; background:linear-gradient(90deg,#22d3ee,#2dd4bf); transition:width .6s }
+.a3d-tag { padding:4px 9px; border:1px solid rgba(34,211,238,.4); border-radius:6px; background:rgba(3,11,20,.88); color:#e6f6ff; font:700 11px Inter,sans-serif; white-space:nowrap; text-align:center; pointer-events:none }
+.a3d-tag small { margin-top:2px; font:8px 'DM Mono',monospace; color:#34d399; letter-spacing:.08em } .a3d-tag.warn small { color:#fbbf24 } .a3d-tag.bad { border-color:#fb7185 } .a3d-tag.bad small { color:#fb7185 } .a3d-tag.poison small { color:#c084fc } .a3d-tag.core small { color:#67e8f9 }
+.arena-stream { margin-top:14px }
+@media (max-width:1100px) { .a3d-metrics { left:16px; right:16px; top:auto; bottom:150px; grid-template-columns:repeat(3,1fr) } .a3d-scen { display:none } .a3d-inspector { top:16px } .a3d-stage { height:620px } }

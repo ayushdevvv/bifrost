@@ -1,0 +1,53 @@
+/* RIFT cyan command-centre theme, matching the 3D Execution Arena. Loaded last. */
+:root {
+  --bg:#040b14; --panel:#08141f; --panel2:#0b1a27; --line:rgba(80,200,230,.15);
+  --muted:#8aa8b8; --soft:#c3dbe6; --blue:#38bdf8; --cyan:#5eead4; --violet:#67e8f9; --purple:#0ea5b7;
+  --pink:#22d3ee; --green:#4be1b6; --red:#ff6682; --amber:#f8c26b;
+  --rift-accent:#22d3ee; --rift-accent-2:#22d3ee; --rift-glass:rgba(6,18,30,.66); --rift-line:rgba(80,200,230,.2);
+  color:#eaf8ff;
+}
+body { background: radial-gradient(900px 520px at 85% -10%, rgba(14,165,183,.28), transparent 60%), radial-gradient(760px 520px at -8% 100%, rgba(34,211,238,.16), transparent 60%), radial-gradient(600px 400px at 40% 40%, rgba(20,120,180,.10), transparent 70%), #040b14 !important; color:#e6f6ff; }
+.app-shell .sidebar { background: linear-gradient(180deg, rgba(6,18,30,.97), rgba(3,9,18,.98)); border-right:1px solid var(--line); }
+.app-shell .topbar { background: rgba(4,12,22,.72); border-bottom:1px solid var(--line); }
+.app-shell .brand strong { background: linear-gradient(105deg,#fff,#7dd3fc 45%,#67e8f9); -webkit-background-clip:text; background-clip:text; color:transparent; }
+.app-shell .brand-symbol i { background: linear-gradient(180deg,#67e8f9,#0ea5b7); box-shadow:0 0 16px rgba(34,211,238,.6); }
+.app-shell .brand-symbol i:nth-child(2) { background: linear-gradient(180deg,#22d3ee,#22d3ee); }
+.app-shell .workspace-avatar, .app-shell .profile-mark, .app-shell .top-avatar { background: linear-gradient(135deg,#22d3ee,#0ea5b7); color:#fff; }
+.app-shell .workspace-select { background: linear-gradient(130deg, rgba(10,44,62,.55), rgba(6,20,34,.8)); }
+.app-shell .nav-link { color:#9fc0cf; } .app-shell .nav-link svg { color:#7fa6b8; }
+.app-shell .nav-link:hover { background: rgba(14,165,183,.14); }
+.app-shell .nav-link.active { background: linear-gradient(100deg, rgba(34,211,238,.2), rgba(14,165,183,.2)); border-color: rgba(80,200,230,.3); box-shadow: inset 3px 0 #22d3ee, 0 8px 24px rgba(14,165,183,.18); color:#fff; }
+.app-shell .nav-link.active svg { color:#67e8f9; }
+.app-shell .eyebrow { color:#67e8f9; }
+.app-shell .page-heading h1 { background: linear-gradient(95deg,#fff 30%,#a5f3fc); -webkit-background-clip:text; background-clip:text; color:transparent; }
+.app-shell .panel, .app-shell .feature-tile, .app-shell .stat-card { background: linear-gradient(150deg, rgba(8,24,38,.92), rgba(4,12,22,.96)); border:1px solid var(--line); box-shadow: 0 18px 46px -22px rgba(14,165,183,.5), inset 0 1px rgba(255,255,255,.04); }
+.app-shell .panel:hover, .app-shell .feature-tile:hover { border-color: rgba(34,211,238,.38); box-shadow: 0 22px 56px -20px rgba(34,211,238,.4); }
+.app-shell .hero-card { background: radial-gradient(ellipse at 75% 48%, rgba(34,211,238,.22), transparent 46%), radial-gradient(ellipse at 40% 0%, rgba(14,165,183,.25), transparent 50%), linear-gradient(110deg,#08202e,#06121d 70%); border-color: rgba(80,200,230,.28); }
+.app-shell .hero-content h2 em { background: linear-gradient(95deg,#22d3ee,#22d3ee); -webkit-background-clip:text; background-clip:text; color:transparent; }
+.app-shell .button-primary, .app-shell .full-button:not(:disabled) { background-image: linear-gradient(115deg,#0ea5b7,#14b8a6 55%,#22d3ee); background-size:200% 100%; color:#fff; box-shadow: 0 12px 34px -12px rgba(34,211,238,.75), inset 0 1px rgba(255,255,255,.25); }
+.app-shell .button-secondary { background: rgba(8,44,62,.55); border-color: rgba(80,200,230,.22); color:#d5f3fb; }
+.app-shell .button-secondary:hover:not(:disabled) { border-color: rgba(34,211,238,.5); background: rgba(10,70,92,.6); }
+.app-shell .field input:not([type=range]), .app-shell .field select, .app-shell .field textarea, .app-shell .search-input { background:#06121d; border-color: rgba(80,200,230,.22); color:#eaf8ff; }
+.app-shell .field input:focus, .app-shell .field select:focus, .app-shell .field textarea:focus { border-color:#14b8a6; box-shadow:0 0 0 3px rgba(34,211,238,.18); }
+.app-shell .choice-card.selected, .app-shell .task-choice.selected, .app-shell .run-list-item.selected { border-color: rgba(34,211,238,.55); background: rgba(34,211,238,.13); }
+.app-shell .selected .choice-check, .app-shell .switch.is-on { border-color:#22d3ee; background: linear-gradient(90deg,#0ea5b7,#22d3ee); }
+.app-shell .field input[type=range], .app-shell .form-panel input[type=range] { accent-color:#5eead4; }
+.app-shell .bar-track i, .app-shell .progress span { background: linear-gradient(90deg,#0ea5b7,#22d3ee); }
+.app-shell .bar-track i.bar-success { background: linear-gradient(90deg,#20a987,#65e0b8); }
+.app-shell .agent-avatar, .app-shell .stat-icon, .app-shell .feature-icon, .app-shell .empty-icon { background: linear-gradient(145deg, rgba(34,211,238,.18), rgba(14,165,183,.22)); border-color: rgba(80,200,230,.3); color:#a5f3fc; }
+.app-shell .badge-blue { color:#67e8f9; border-color: rgba(34,211,238,.3); background: rgba(14,165,183,.12); }
+.app-shell .text-button, .app-shell .feature-open { color:#67e8f9; }
+.app-shell th { color:#7fb0c4; } .app-shell td { color:#c3dbe6; } .app-shell td b { color:#fff; }
+.app-shell .run-estimate { background: rgba(34,211,238,.08); border-color: rgba(80,200,230,.28); }
+.app-shell .arena-stage, .app-shell .arena-canvas { border-color: rgba(80,200,230,.28); background:#030b14; }
+.app-shell .pareto-dot.frontier, .app-shell .pareto-point-mark.frontier { background:#22d3ee; fill:#22d3ee; }
+.app-shell .pareto-frontier-line { stroke:#5eead4; }
+::selection { background: rgba(34,211,238,.4); }
+::-webkit-scrollbar-thumb { background: rgba(80,200,230,.3); background-clip: content-box; }
+button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible { outline:2px solid #5eead4; }
+
+.run-dock-result { display:flex; align-items:baseline; gap:8px; margin-top:12px; padding:10px 12px; border-radius:12px; background: rgba(75,225,182,.09); border:1px solid rgba(75,225,182,.25) }
+.run-dock-result b { font-size:22px; color:#a7f3d0 } .run-dock-result small { font-size:13px; color:#6ee7b7 } .run-dock-result span { font-size:11px; color:#9db0c9 }
+.run-dock-links { display:grid; grid-template-columns:1fr 1fr; gap:7px; margin-top:12px }
+.run-dock-links button { padding:8px 6px; border-radius:10px; border:1px solid var(--rift-line); background: rgba(14,165,183,.14); color:#e6f6ff; font-size:11px; cursor:pointer }
+.run-dock-links button:hover { background: linear-gradient(115deg, rgba(14,165,183,.4), rgba(34,211,238,.35)); }

@@ -5,7 +5,7 @@ import './styles.css'
 import './premium.css'
 import './benchmark-ui.css'
 import './polish.css'
-import './theme-violet.css'
+import './theme-cyan.css'
 
 createRoot(document.getElementById('root')).render(
   <React.StrictMode>
