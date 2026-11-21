@@ -76,8 +76,8 @@ Remote MCP custom connectors are available on Claude Free, Pro, Max, Ultra, Team
 2. Choose Add custom connector.
 3. Name it `RIFT Arena`.
 4. Enter `https://riftz.vercel.app/mcp/`.
-5. Select `No sign in` for this current public endpoint.
-6. Add the connector and enable it in a conversation.
+5. Configure HTTP Bearer authentication and send `Authorization: Bearer <workspace-access-token>`. The connector client must support custom authorization headers.
+6. Add the connector and enable it in a conversation. Access tokens expire; sign in again when the token expires.
 
 Claude's official setup guide: https://support.claude.com/en/articles/11175166-get-started-with-custom-connectors-using-remote-mcp
 
@@ -91,14 +91,14 @@ For an eligible account:
 2. Select `+` → `Add custom MCP server`.
 3. Name it `RIFT Arena`.
 4. Enter `https://riftz.vercel.app/mcp/`.
-5. Configure authentication as `No authentication` for this current public endpoint.
+5. Configure HTTP Bearer authentication and send `Authorization: Bearer <workspace-access-token>`. The client must support a custom authorization header.
 6. Review the discovered tools and create the plugin.
 7. Start a new chat and select `RIFT Arena` from Plugins / `@` app selection.
 
 OpenAI's connection guide: https://help.openai.com/en/articles/12584461-connecting-custom-mcp-servers-in-chatgpt
 
-## Public access and security
+## Workspace authentication and security
 
-This endpoint currently has no sign-in. Read-only means the assistant cannot mutate RIFT; it does **not** mean the endpoint is private. Anyone who knows the URL can read the records exposed by these tools. Do not store secrets, private customer data, access tokens or sensitive prompts in RIFT records while this public endpoint is enabled.
+The MCP endpoint is not public. Every request must include a valid workspace access token in `Authorization: Bearer <token>`. Obtain a token through the RIFT sign-in flow (`POST /api/auth/login` or the registration flow while signup is enabled). All MCP reads use the authenticated tenant context; tools are read-only and cannot launch or mutate experiments.
 
-For private, per-user access, add an OAuth 2.1 authorization layer and authorize the connector after sign-in. A fixed URL or `readOnlyHint` annotation is not authentication. MCP annotations are client hints; the server's registered tool set is what enforces the read-only boundary.
+Only connect from an MCP client that can attach a custom Bearer authorization header. Some client integrations support only OAuth 2.1 discovery or do not expose custom headers; those clients cannot authenticate against this endpoint yet. RIFT does not currently implement the MCP OAuth 2.1 authorization-server flow. Do not disable authentication or distribute a shared admin token to work around that limitation. Tokens are short-lived and logout revokes them.
