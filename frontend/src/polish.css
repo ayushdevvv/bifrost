@@ -1,0 +1,39 @@
+/* RIFT premium polish layer: loaded last, additive only. */
+:root { --rift-accent:#7fd4ff; --rift-accent-2:#a78bfa; --rift-glass:rgba(16,24,40,.62); --rift-line:rgba(160,200,255,.14); }
+body { background-image: radial-gradient(900px 500px at 85% -10%, rgba(88,120,255,.14), transparent 60%), radial-gradient(700px 480px at -10% 105%, rgba(45,212,191,.09), transparent 60%); background-attachment: fixed; }
+.page-root { animation: riftIn .45s cubic-bezier(.2,.7,.2,1) both; }
+@keyframes riftIn { from { opacity:0; transform: translateY(10px) } to { opacity:1; transform:none } }
+.panel, [class*="-panel"] { backdrop-filter: blur(14px) saturate(130%); transition: border-color .25s, box-shadow .25s, transform .25s; }
+.panel:hover { border-color: var(--rift-line); box-shadow: 0 18px 50px -24px rgba(80,140,255,.45); }
+button { transition: transform .15s, box-shadow .2s, background .2s, border-color .2s; }
+button:not(:disabled):active { transform: scale(.975); }
+.full-button:not(:disabled) { background-image: linear-gradient(120deg, #5aa8ff, #8b7bff 55%, #5eead4); background-size: 200% 100%; animation: riftSheen 6s ease infinite; box-shadow: 0 10px 34px -12px rgba(110,150,255,.8); }
+.full-button:disabled { opacity:.7; cursor: progress; }
+@keyframes riftSheen { 50% { background-position: 100% 0 } }
+.arena-canvas { border-radius: 18px; overflow: hidden; box-shadow: inset 0 0 0 1px var(--rift-line), 0 30px 80px -30px rgba(60,120,255,.5); }
+.skeleton, .empty-state { position: relative; overflow: hidden; }
+.skeleton::after { content:""; position:absolute; inset:0; background: linear-gradient(100deg, transparent 30%, rgba(160,200,255,.12), transparent 70%); transform: translateX(-100%); animation: riftShimmer 1.4s infinite; }
+@keyframes riftShimmer { to { transform: translateX(100%) } }
+.spin { animation: riftSpin 1s linear infinite; }
+@keyframes riftSpin { to { transform: rotate(360deg) } }
+::-webkit-scrollbar { width: 10px; height: 10px } ::-webkit-scrollbar-thumb { background: rgba(140,180,255,.22); border-radius: 8px; border: 2px solid transparent; background-clip: content-box }
+
+.run-dock { position: fixed; right: 22px; bottom: 22px; z-index: 80; width: 330px; padding: 16px 16px 14px; border-radius: 18px; color:#e8f1ff; background: var(--rift-glass); border: 1px solid var(--rift-line); backdrop-filter: blur(22px) saturate(150%); box-shadow: 0 30px 80px -20px rgba(0,0,0,.7), 0 0 0 1px rgba(255,255,255,.03) inset; animation: riftDock .5s cubic-bezier(.2,.8,.2,1) both; }
+@keyframes riftDock { from { opacity:0; transform: translateY(24px) scale(.96) } }
+.run-dock::before { content:""; position:absolute; inset:-1px; border-radius:19px; padding:1px; background: conic-gradient(from var(--a,0deg), transparent 55%, var(--rift-accent), var(--rift-accent-2), transparent); -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0); -webkit-mask-composite: xor; mask-composite: exclude; animation: riftOrbit 3.2s linear infinite; pointer-events:none; }
+@property --a { syntax:'<angle>'; inherits:false; initial-value:0deg }
+@keyframes riftOrbit { to { --a: 360deg } }
+.run-dock.is-done::before { animation: none; background: linear-gradient(120deg, #34d399, #7fd4ff); }
+.run-dock-head { display:flex; align-items:center; gap:11px } .run-dock-head b { display:block; font-size:13px } .run-dock-head small { display:block; font-size:11px; color:#8fa3bd; max-width:210px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis }
+.run-dock-orb { width:32px; height:32px; border-radius:50%; display:grid; place-items:center; background: rgba(127,212,255,.14); color: var(--rift-accent) } .is-done .run-dock-orb { background: rgba(52,211,153,.16); color:#34d399 }
+.run-dock-x { margin-left:auto; background:none; border:0; color:#8fa3bd; cursor:pointer; padding:4px }
+.run-dock-bar { height:6px; margin:14px 0 7px; border-radius:6px; background: rgba(255,255,255,.07); overflow:hidden } .run-dock-bar i { display:block; height:100%; border-radius:6px; background: linear-gradient(90deg, #5aa8ff, #a78bfa, #5eead4); background-size:200% 100%; animation: riftSheen 2.4s linear infinite; transition: width .7s cubic-bezier(.2,.8,.2,1) }
+.run-dock-meta { display:flex; justify-content:space-between; font-size:11px; color:#9db0c9; font-variant-numeric: tabular-nums }
+.run-dock-stages { list-style:none; margin:12px 0 0; padding:0; display:grid; grid-template-columns:1fr 1fr; gap:7px 10px; font-size:11px; color:#6f819a }
+.run-dock-stages li { display:flex; align-items:center; gap:7px } .run-dock-stages i { width:7px; height:7px; border-radius:50%; background:#2a3850 }
+.run-dock-stages .now { color:#e8f1ff } .run-dock-stages .now i { background: var(--rift-accent); box-shadow: 0 0 0 4px rgba(127,212,255,.18); animation: riftPulse 1.4s infinite }
+.run-dock-stages .done { color:#a7f3d0 } .run-dock-stages .done i { background:#34d399 }
+@keyframes riftPulse { 50% { box-shadow: 0 0 0 7px rgba(127,212,255,0) } }
+.run-dock-open { margin-top:13px; width:100%; display:flex; align-items:center; justify-content:center; gap:6px; padding:9px; border-radius:11px; border:1px solid var(--rift-line); background: rgba(127,212,255,.09); color:#e8f1ff; font-size:12px; cursor:pointer } .run-dock-open:hover { background: rgba(127,212,255,.18) }
+@media (max-width:640px) { .run-dock { left:12px; right:12px; width:auto; bottom:12px } }
+@media (prefers-reduced-motion: reduce) { *, ::before, ::after { animation-duration:.01ms !important; animation-iteration-count:1 !important } }

@@ -1,0 +1,53 @@
+/* RIFT violet/pink theme: restores the original colourful identity on top of the newer layout. Loaded last. */
+:root {
+  --bg:#080616; --panel:#110c26; --panel2:#160f30; --line:rgba(190,150,255,.15);
+  --muted:#a398c4; --soft:#cfc6ec; --blue:#8b7bff; --cyan:#5eead4; --violet:#b794ff; --purple:#8b5cf6;
+  --pink:#ff5fa2; --green:#4be1b6; --red:#ff6682; --amber:#f8c26b;
+  --rift-accent:#c084fc; --rift-accent-2:#ff5fa2; --rift-glass:rgba(22,12,42,.66); --rift-line:rgba(200,150,255,.2);
+  color:#f6f1ff;
+}
+body { background: radial-gradient(900px 520px at 85% -10%, rgba(139,92,246,.28), transparent 60%), radial-gradient(760px 520px at -8% 100%, rgba(255,95,162,.16), transparent 60%), radial-gradient(600px 400px at 40% 40%, rgba(80,60,200,.10), transparent 70%), #080616 !important; color:#f1ebff; }
+.app-shell .sidebar { background: linear-gradient(180deg, rgba(18,9,38,.97), rgba(10,6,24,.98)); border-right:1px solid var(--line); }
+.app-shell .topbar { background: rgba(14,8,30,.72); border-bottom:1px solid var(--line); }
+.app-shell .brand strong { background: linear-gradient(105deg,#fff,#d6a8ff 45%,#ff7ab8); -webkit-background-clip:text; background-clip:text; color:transparent; }
+.app-shell .brand-symbol i { background: linear-gradient(180deg,#ff7ab8,#8b5cf6); box-shadow:0 0 16px rgba(255,95,162,.6); }
+.app-shell .brand-symbol i:nth-child(2) { background: linear-gradient(180deg,#c084fc,#ff5fa2); }
+.app-shell .workspace-avatar, .app-shell .profile-mark, .app-shell .top-avatar { background: linear-gradient(135deg,#ff5fa2,#8b5cf6); color:#fff; }
+.app-shell .workspace-select { background: linear-gradient(130deg, rgba(60,28,100,.55), rgba(24,12,46,.8)); }
+.app-shell .nav-link { color:#b7aad8; } .app-shell .nav-link svg { color:#9a8bc6; }
+.app-shell .nav-link:hover { background: rgba(139,92,246,.14); }
+.app-shell .nav-link.active { background: linear-gradient(100deg, rgba(255,95,162,.2), rgba(139,92,246,.2)); border-color: rgba(214,150,255,.3); box-shadow: inset 3px 0 #ff5fa2, 0 8px 24px rgba(139,92,246,.18); color:#fff; }
+.app-shell .nav-link.active svg { color:#ff8cc3; }
+.app-shell .eyebrow { color:#e0a7ff; }
+.app-shell .page-heading h1 { background: linear-gradient(95deg,#fff 30%,#e3c4ff); -webkit-background-clip:text; background-clip:text; color:transparent; }
+.app-shell .panel, .app-shell .feature-tile, .app-shell .stat-card { background: linear-gradient(150deg, rgba(30,16,58,.92), rgba(14,8,30,.96)); border:1px solid var(--line); box-shadow: 0 18px 46px -22px rgba(139,92,246,.5), inset 0 1px rgba(255,255,255,.04); }
+.app-shell .panel:hover, .app-shell .feature-tile:hover { border-color: rgba(255,120,190,.38); box-shadow: 0 22px 56px -20px rgba(255,95,162,.4); }
+.app-shell .hero-card { background: radial-gradient(ellipse at 75% 48%, rgba(255,95,162,.22), transparent 46%), radial-gradient(ellipse at 40% 0%, rgba(139,92,246,.25), transparent 50%), linear-gradient(110deg,#1a0d38,#0d0820 70%); border-color: rgba(214,150,255,.28); }
+.app-shell .hero-content h2 em { background: linear-gradient(95deg,#c084fc,#ff5fa2); -webkit-background-clip:text; background-clip:text; color:transparent; }
+.app-shell .button-primary, .app-shell .full-button:not(:disabled) { background-image: linear-gradient(115deg,#8b5cf6,#d946ef 55%,#ff5fa2); background-size:200% 100%; color:#fff; box-shadow: 0 12px 34px -12px rgba(217,70,239,.75), inset 0 1px rgba(255,255,255,.25); }
+.app-shell .button-secondary { background: rgba(60,30,100,.55); border-color: rgba(200,150,255,.22); color:#eadcff; }
+.app-shell .button-secondary:hover:not(:disabled) { border-color: rgba(255,120,190,.5); background: rgba(90,40,130,.6); }
+.app-shell .field input:not([type=range]), .app-shell .field select, .app-shell .field textarea, .app-shell .search-input { background:#0d0820; border-color: rgba(190,150,255,.22); color:#f4ecff; }
+.app-shell .field input:focus, .app-shell .field select:focus, .app-shell .field textarea:focus { border-color:#d946ef; box-shadow:0 0 0 3px rgba(217,70,239,.18); }
+.app-shell .choice-card.selected, .app-shell .task-choice.selected, .app-shell .run-list-item.selected { border-color: rgba(255,120,190,.55); background: rgba(217,70,239,.13); }
+.app-shell .selected .choice-check, .app-shell .switch.is-on { border-color:#ff5fa2; background: linear-gradient(90deg,#8b5cf6,#ff5fa2); }
+.app-shell .field input[type=range], .app-shell .form-panel input[type=range] { accent-color:#e879f9; }
+.app-shell .bar-track i, .app-shell .progress span { background: linear-gradient(90deg,#8b5cf6,#ff5fa2); }
+.app-shell .bar-track i.bar-success { background: linear-gradient(90deg,#20a987,#65e0b8); }
+.app-shell .agent-avatar, .app-shell .stat-icon, .app-shell .feature-icon, .app-shell .empty-icon { background: linear-gradient(145deg, rgba(255,95,162,.18), rgba(139,92,246,.22)); border-color: rgba(214,150,255,.3); color:#f0b8ff; }
+.app-shell .badge-blue { color:#d9a8ff; border-color: rgba(192,132,252,.3); background: rgba(139,92,246,.12); }
+.app-shell .text-button, .app-shell .feature-open { color:#ff9bd0; }
+.app-shell th { color:#b79bdc; } .app-shell td { color:#d4c9ee; } .app-shell td b { color:#fff; }
+.app-shell .run-estimate { background: rgba(217,70,239,.08); border-color: rgba(214,150,255,.28); }
+.app-shell .arena-stage, .app-shell .arena-canvas { border-color: rgba(214,150,255,.28); background:#0a0618; }
+.app-shell .pareto-dot.frontier, .app-shell .pareto-point-mark.frontier { background:#ff5fa2; fill:#ff5fa2; }
+.app-shell .pareto-frontier-line { stroke:#e879f9; }
+::selection { background: rgba(217,70,239,.4); }
+::-webkit-scrollbar-thumb { background: rgba(200,150,255,.3); background-clip: content-box; }
+button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible { outline:2px solid #e879f9; }
+
+.run-dock-result { display:flex; align-items:baseline; gap:8px; margin-top:12px; padding:10px 12px; border-radius:12px; background: rgba(75,225,182,.09); border:1px solid rgba(75,225,182,.25) }
+.run-dock-result b { font-size:22px; color:#a7f3d0 } .run-dock-result small { font-size:13px; color:#6ee7b7 } .run-dock-result span { font-size:11px; color:#9db0c9 }
+.run-dock-links { display:grid; grid-template-columns:1fr 1fr; gap:7px; margin-top:12px }
+.run-dock-links button { padding:8px 6px; border-radius:10px; border:1px solid var(--rift-line); background: rgba(139,92,246,.14); color:#f1e8ff; font-size:11px; cursor:pointer }
+.run-dock-links button:hover { background: linear-gradient(115deg, rgba(139,92,246,.4), rgba(255,95,162,.35)); }

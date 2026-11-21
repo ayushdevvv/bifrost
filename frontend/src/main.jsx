@@ -4,6 +4,8 @@ import App from './App.jsx'
 import './styles.css'
 import './premium.css'
 import './benchmark-ui.css'
+import './polish.css'
+import './theme-violet.css'
 
 createRoot(document.getElementById('root')).render(
   <React.StrictMode>

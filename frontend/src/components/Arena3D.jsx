@@ -3,14 +3,14 @@ import { Canvas, useFrame } from '@react-three/fiber'
 import { ContactShadows, Float, OrbitControls, Sparkles, Stars } from '@react-three/drei'
 import * as THREE from 'three'
 
-function GlowRing({ position = [0, 0, 0], radius = 1, color = '#54caff', opacity = 0.6 }) {
+function GlowRing({ position = [0, 0, 0], radius = 1, color = '#e879f9', opacity = 0.6 }) {
   return <mesh position={position} rotation={[-Math.PI / 2, 0, 0]}>
     <torusGeometry args={[radius, 0.018, 12, 100]} />
     <meshBasicMaterial color={color} transparent opacity={opacity} />
   </mesh>
 }
 
-function Tower({ position, height = 1.4, color = '#4c8fff', accent = '#8b5cf6', active = false }) {
+function Tower({ position, height = 1.4, color = '#ff5fa2', accent = '#a855f7', active = false }) {
   const glow = useRef()
   useFrame(({ clock }) => {
     if (glow.current) glow.current.material.opacity = (active ? 0.8 : 0.28) + Math.sin(clock.elapsedTime * 2.2) * 0.09
@@ -80,6 +80,28 @@ function NetworkPath({ points, color = '#4baeff', opacity = 0.45 }) {
   </mesh>
 }
 
+function Packet({ points, color = '#f0abfc', speed = 0.35, offset = 0 }) {
+  const ref = useRef()
+  const curve = useMemo(() => new THREE.CatmullRomCurve3(points.map((p) => new THREE.Vector3(...p))), [points])
+  useFrame(({ clock }) => {
+    if (!ref.current) return
+    ref.current.position.copy(curve.getPoint((clock.elapsedTime * speed + offset) % 1))
+    ref.current.scale.setScalar(1 + Math.sin(clock.elapsedTime * 6 + offset * 9) * 0.25)
+  })
+  return <mesh ref={ref}><sphereGeometry args={[0.075, 14, 14]} /><meshBasicMaterial color={color} /></mesh>
+}
+
+function ScanRing() {
+  const ref = useRef()
+  useFrame(({ clock }) => {
+    if (!ref.current) return
+    const t = (clock.elapsedTime * 0.45) % 1
+    ref.current.scale.setScalar(0.6 + t * 2.6)
+    ref.current.material.opacity = (1 - t) * 0.5
+  })
+  return <mesh ref={ref} position={[0, 0.06, 0]} rotation={[-Math.PI / 2, 0, 0]}><ringGeometry args={[0.96, 1, 96]} /><meshBasicMaterial color="#ff7ab8" transparent opacity={0.4} side={THREE.DoubleSide} /></mesh>
+}
+
 function Scene({ events = [], fault = 'none' }) {
   const latest = events[events.length - 1]
   const eventType = latest?.event_type || ''
@@ -95,20 +117,20 @@ function Scene({ events = [], fault = 'none' }) {
   const poisonActive = fault === 'poison' || eventType === 'evidence.poison.injected'
   const latencyActive = fault === 'latency' || eventType === 'latency.delay.applied'
   return <>
-    <color attach="background" args={['#060b18']} />
-    <fog attach="fog" args={['#060b18', 10, 25]} />
+    <color attach="background" args={['#0a0618']} />
+    <fog attach="fog" args={['#0a0618', 10, 25]} />
     <ambientLight intensity={0.75} />
     <directionalLight position={[4, 8, 5]} intensity={2} color="#c3e7ff" castShadow />
-    <pointLight position={[0, 3, 0]} intensity={2.4} color="#2b8dff" distance={11} />
-    <pointLight position={[-4, 2, -2]} intensity={1.7} color="#8d4dff" distance={8} />
-    <pointLight position={[4, 2, 2]} intensity={1.5} color="#12e2bd" distance={8} />
+    <pointLight position={[0, 3, 0]} intensity={2.4} color="#d946ef" distance={11} />
+    <pointLight position={[-4, 2, -2]} intensity={1.7} color="#ff5fa2" distance={8} />
+    <pointLight position={[4, 2, 2]} intensity={1.5} color="#8b5cf6" distance={8} />
     <Stars radius={45} depth={22} count={850} factor={2.2} saturation={0.25} fade speed={0.5} />
     <Sparkles count={70} scale={[12, 5, 12]} size={1.6} speed={0.25} color="#63baff" />
     <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.12, 0]} receiveShadow>
       <planeGeometry args={[30, 30]} />
-      <meshStandardMaterial color="#081226" metalness={0.35} roughness={0.82} />
+      <meshStandardMaterial color="#120a28" metalness={0.35} roughness={0.82} />
     </mesh>
-    <gridHelper args={[24, 48, '#163c70', '#0e2342']} position={[0, -0.105, 0]} />
+    <gridHelper args={[24, 48, '#5b2a8c', '#2a1250']} position={[0, -0.105, 0]} />
     <group position={[0, 0, 0]}>
       <mesh position={[0, 0.1, 0]}>
         <cylinderGeometry args={[2.2, 2.5, 0.38, 64]} />
@@ -118,12 +140,12 @@ function Scene({ events = [], fault = 'none' }) {
         <cylinderGeometry args={[1.5, 1.8, 0.18, 64]} />
         <meshStandardMaterial color="#162a4b" metalness={0.86} roughness={0.2} emissive="#125caa" emissiveIntensity={0.55} />
       </mesh>
-      <GlowRing position={[0, 0.34, 0]} radius={2.28} color="#4bbcff" opacity={0.9} />
-      <GlowRing position={[0, 0.45, 0]} radius={1.62} color="#8b5cf6" opacity={0.78} />
+      <GlowRing position={[0, 0.34, 0]} radius={2.28} color="#ff7ab8" opacity={0.9} />
+      <GlowRing position={[0, 0.45, 0]} radius={1.62} color="#a855f7" opacity={0.78} />
       <Float speed={1.1} rotationIntensity={0.04} floatIntensity={0.16}>
         <mesh position={[0, 1.7, 0]}>
           <octahedronGeometry args={[0.72, 1]} />
-          <meshPhysicalMaterial color="#42bfff" roughness={0.1} metalness={0.5} transmission={0.55} thickness={1.4} emissive="#155b9f" emissiveIntensity={0.55} />
+          <meshPhysicalMaterial color="#e879f9" roughness={0.1} metalness={0.5} transmission={0.55} thickness={1.4} emissive="#155b9f" emissiveIntensity={0.55} />
         </mesh>
       </Float>
       <mesh position={[0, 0.9, 0]}>
@@ -138,6 +160,10 @@ function Scene({ events = [], fault = 'none' }) {
     <NetworkPath points={[[-3.3, 0.16, -2.1], [-1.3, 0.4, -1], [0, 0.45, 0]]} color={providerDown ? '#ff526f' : '#4b9cff'} />
     <NetworkPath points={[[0, 0.44, 0], [1.7, 0.35, 0.8], [3.25, 0.16, 2.1]]} color={poisonActive ? '#be6aff' : '#21d6c0'} />
     <NetworkPath points={[[-3.3, 0.16, 2.15], [-1.5, 0.38, 1.2], [0, 0.45, 0]]} color={latencyActive ? '#ffc75f' : '#399de9'} opacity={latencyActive ? 0.9 : 0.45} />
+    <ScanRing />
+    <Packet points={[[-3.3, 0.16, -2.1], [-1.3, 0.4, -1], [0, 0.45, 0]]} color={providerDown ? '#ff7a8f' : '#f0abfc'} speed={providerDown ? 0.12 : 0.32} />
+    <Packet points={[[0, 0.44, 0], [1.7, 0.35, 0.8], [3.25, 0.16, 2.1]]} color={poisonActive ? '#d9a0ff' : '#ff8cc3'} offset={0.4} />
+    <Packet points={[[-3.3, 0.16, 2.15], [-1.5, 0.38, 1.2], [0, 0.45, 0]]} color={latencyActive ? '#ffd98a' : '#c4a1ff'} speed={latencyActive ? 0.1 : 0.3} offset={0.7} />
     <AgentBot start={[-0.35, 0.5, -0.45]} target={targets[0]} color="#64d8ff" scale={0.82} />
     <AgentBot start={[0.45, 0.5, 0.45]} target={targets[1]} color="#c58cff" scale={0.72} />
     <ContactShadows position={[0, -0.1, 0]} opacity={0.4} scale={12} blur={2.8} far={4} />
